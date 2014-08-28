@@ -9,7 +9,6 @@ import "C"
 import (
 	"fmt"
 	"path"
-	"unsafe"
 )
 
 type Fid C.lustre_fid
@@ -101,7 +100,7 @@ func (e *FidPathError) Error() string {
 }
 
 func fid2path(device string, fidstr string, recno *int64, linkno *int) (string, error) {
-	var buffer [2048]C.char
+	var buffer [4096]C.char
 	var clinkno C.int = C.int(*linkno)
 	rc, err := C.llapi_fid2path(C.CString(device), C.CString(fidstr),
 		&buffer[0],
@@ -112,6 +111,6 @@ func fid2path(device string, fidstr string, recno *int64, linkno *int) (string, 
 	if rc != 0 || err != nil {
 		return "", &FidPathError{fidstr, int(rc), err}
 	}
-	path := C.GoString((*C.char)(unsafe.Pointer(&buffer[0])))
-	return path, err
+	p := C.GoString(&buffer[0])
+	return p, err
 }

@@ -1,21 +1,18 @@
 package lustre
 
 import (
-	"flag"
 	"io/ioutil"
 	"testing"
 	//    . "gopkg.in/check.v1"
 )
 
-var mnt = flag.String("mnt", "", "Lustre mountpoint")
-
 func TestFid(t *testing.T) {
-	if *mnt == "" {
+	if mntPath == "" {
 		t.Fatal("use --mnt <path> to run lustre tests")
 	}
-	f, err := ioutil.TempFile(*mnt, "test")
+	f, err := ioutil.TempFile(mntPath, "test")
 	if err != nil {
-		t.Errorf("Unable to create file in %s", mnt)
+		t.Errorf("Unable to create file in %s", mntPath)
 		return
 	}
 	name := f.Name()
@@ -28,7 +25,7 @@ func TestFid(t *testing.T) {
 		t.Error("Unable to get fid", err)
 		return
 	}
-	fids, err := fid.Paths(*mnt)
+	fids, err := fid.Paths(mntPath)
 	if err != nil {
 		t.Error("fid.Paths: ", err, fids)
 	}
