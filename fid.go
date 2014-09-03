@@ -8,6 +8,7 @@ import "C"
 
 import (
 	"fmt"
+	"os"
 	"path"
 )
 
@@ -45,33 +46,49 @@ func ParseFid(fidstr string) (*Fid, error) {
 	return &fid, nil
 }
 
-// Paths returns all paths for a FID.
+// Pathnames returns all paths for a FID.
 //
 // This returns a slice containing all names that reference
 // the FID.
 //
-func (fid Fid) Paths(mnt string) ([]string, error) {
-	return FidPaths(mnt, fid.String())
+func (fid Fid) Pathnames(mnt string) ([]string, error) {
+	return FidPathnames(mnt, fid.String())
 }
 
-// Path returns a path for a FID.
+// Path returns the fid path.
+func (fid Fid) Path(mnt string) string {
+	return FidPath(mnt, fid.String())
+}
+
+// Open by fid.
+// Returns readable file handle
+func (fid Fid) Open(mnt string) (*os.File, error) {
+	return os.Open(fid.Path(mnt))
+}
+
+// Pathname returns a path for a FID.
 //
 // If the fid is referred to by more than one file (i.e. hard links),
 // the the LINKNO specifies a specific link to return. This does
 // not update linkno on return. Use Paths to retrieve all hard link
 // names.
 //
-func FidPath(mnt string, fidstr string, linkno int) (string, error) {
+func FidPathname(mnt string, fidstr string, linkno int) (string, error) {
 	var recno int64 = 0
 	return fid2path(mnt, fidstr, &recno, &linkno)
 }
 
-// Paths returns all paths for a FIDSTR.
+// FidPath returns the Fid Path for a fid.
+func FidPath(mnt string, fidstr string) string {
+	return path.Join(mnt, ".lustre", "fid", fidstr)
+}
+
+// Pathnames returns all paths for a FIDSTR.
 //
 // This returns a slice containing all names that reference
 // the FID.
 //
-func FidPaths(mnt string, fidstr string) ([]string, error) {
+func FidPathnames(mnt string, fidstr string) ([]string, error) {
 	var recno int64 = 0
 	var linkno int = 0
 	var prev_linkno int = -1

@@ -25,7 +25,7 @@ func TestFid(t *testing.T) {
 		t.Error("Unable to get fid", err)
 		return
 	}
-	fids, err := fid.Paths(mntPath)
+	fids, err := fid.Pathnames(mntPath)
 	if err != nil {
 		t.Error("fid.Paths: ", err, fids)
 	}
