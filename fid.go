@@ -12,6 +12,11 @@ import (
 	"path"
 )
 
+var (
+	// Special FID for .lustre
+	_DOT_LUSTRE_FID = Fid{0x200000002, 0x1, 0x0}
+)
+
 type Fid C.lustre_fid
 
 func (fid Fid) String() string {
@@ -51,18 +56,18 @@ func ParseFid(fidstr string) (*Fid, error) {
 // This returns a slice containing all names that reference
 // the FID.
 //
-func (fid Fid) Pathnames(mnt string) ([]string, error) {
+func (fid Fid) Pathnames(mnt RootDir) ([]string, error) {
 	return FidPathnames(mnt, fid.String())
 }
 
 // Path returns the fid path.
-func (fid Fid) Path(mnt string) string {
+func (fid Fid) Path(mnt RootDir) string {
 	return FidPath(mnt, fid.String())
 }
 
 // Open by fid.
 // Returns readable file handle
-func (fid Fid) Open(mnt string) (*os.File, error) {
+func (fid Fid) Open(mnt RootDir) (*os.File, error) {
 	return os.Open(fid.Path(mnt))
 }
 
@@ -73,14 +78,14 @@ func (fid Fid) Open(mnt string) (*os.File, error) {
 // not update linkno on return. Use Paths to retrieve all hard link
 // names.
 //
-func FidPathname(mnt string, fidstr string, linkno int) (string, error) {
+func FidPathname(mnt RootDir, fidstr string, linkno int) (string, error) {
 	var recno int64 = 0
-	return fid2path(mnt, fidstr, &recno, &linkno)
+	return fid2path(string(mnt), fidstr, &recno, &linkno)
 }
 
 // FidPath returns the Fid Path for a fid.
-func FidPath(mnt string, fidstr string) string {
-	return path.Join(mnt, ".lustre", "fid", fidstr)
+func FidPath(mnt RootDir, fidstr string) string {
+	return path.Join(string(mnt), ".lustre", "fid", fidstr)
 }
 
 // Pathnames returns all paths for a FIDSTR.
@@ -88,18 +93,18 @@ func FidPath(mnt string, fidstr string) string {
 // This returns a slice containing all names that reference
 // the FID.
 //
-func FidPathnames(mnt string, fidstr string) ([]string, error) {
+func FidPathnames(mnt RootDir, fidstr string) ([]string, error) {
 	var recno int64 = 0
 	var linkno int = 0
 	var prev_linkno int = -1
 	var paths = make([]string, 0)
 	for prev_linkno < linkno {
 		prev_linkno = linkno
-		p, err := fid2path(mnt, fidstr, &recno, &linkno)
+		p, err := fid2path(string(mnt), fidstr, &recno, &linkno)
 		if err != nil {
 			return paths, err
 		}
-		paths = append(paths, path.Join(mnt, p))
+		paths = append(paths, path.Join(string(mnt), p))
 	}
 
 	return paths, nil

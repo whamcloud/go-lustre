@@ -27,10 +27,10 @@ type (
 )
 
 // CoordinatorConnection opens a connection to the coordinator.
-func CoordinatorConnection(path string) (*Coordinator, error) {
+func CoordinatorConnection(path RootDir) (*Coordinator, error) {
 	var cdt = Coordinator{}
 
-	_, err := C.llapi_hsm_copytool_register(&cdt.hcp, C.CString(path), 0, 0, nil)
+	_, err := C.llapi_hsm_copytool_register(&cdt.hcp, C.CString(string(path)), 0, 0, nil)
 	if err != nil {
 		return nil, err
 	}

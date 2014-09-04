@@ -7,10 +7,11 @@ import (
 )
 
 func TestFid(t *testing.T) {
-	if mntPath == "" {
+	mnt, err := MountRoot(mntPath)
+	if err != nil {
 		t.Fatal("use --mnt <path> to run lustre tests")
 	}
-	f, err := ioutil.TempFile(mntPath, "test")
+	f, err := ioutil.TempFile(string(mnt), "test")
 	if err != nil {
 		t.Errorf("Unable to create file in %s", mntPath)
 		return
@@ -25,7 +26,7 @@ func TestFid(t *testing.T) {
 		t.Error("Unable to get fid", err)
 		return
 	}
-	fids, err := fid.Pathnames(mntPath)
+	fids, err := fid.Pathnames(mnt)
 	if err != nil {
 		t.Error("fid.Paths: ", err, fids)
 	}

@@ -10,6 +10,8 @@ import "C"
 
 import (
 	"fmt"
+	"os"
+	"path"
 )
 
 // Version returns the current Lustre version string.
@@ -35,4 +37,44 @@ func MountId(mountPath string) (string, error) {
 		return "", fmt.Errorf("lustre:  %v %d %v", mountPath, rc, err)
 	}
 	return C.GoString(&buffer[0]), nil
+}
+
+type RootDir string
+
+func isDotLustre(dir string) bool {
+	fi, err := os.Lstat(dir)
+	if err != nil {
+		return false
+	}
+	if fi.Mode().IsDir() {
+		fid, err := LookupFid(dir)
+		if err == nil && *fid == _DOT_LUSTRE_FID {
+			return true
+		}
+	}
+	return false
+}
+
+func findRoot(pathname string) string {
+	if pathname == "" {
+		return ""
+	}
+	if isDotLustre(path.Join(pathname, ".lustre")) {
+		return pathname
+	}
+	if pathname == "/" {
+		return ""
+	}
+	return findRoot(path.Dir(pathname))
+
+}
+
+// MountRoot returns the Lustre filesystem mountpoint for the give path
+// or returns an error if the path is not on a Lustre filesystem.
+func MountRoot(path string) (RootDir, error) {
+	mnt := findRoot(path)
+	if mnt == "" {
+		return RootDir(""), fmt.Errorf("%s not a Lustre filesystem", path)
+	}
+	return RootDir(mnt), nil
 }

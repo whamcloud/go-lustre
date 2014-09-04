@@ -30,3 +30,16 @@ func TestMountId(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestMountRoot(t *testing.T) {
+	_, err := MountRoot(mntPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = MountRoot("/tmp/")
+	if err == nil {
+		t.Fatal("oops /tmp is not Lustre")
+	}
+
+}
