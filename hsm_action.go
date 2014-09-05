@@ -122,9 +122,43 @@ func (ai *ActionItemHandle) End(offset uint64, length uint64, flags int, errval 
 	return nil
 }
 
+type HsmAction uint32
+
+const (
+	NONE    = HsmAction(C.HSMA_NONE)
+	ARCHIVE = HsmAction(C.HSMA_ARCHIVE)
+	RESTORE = HsmAction(C.HSMA_RESTORE)
+	REMOVE  = HsmAction(C.HSMA_REMOVE)
+	CANCEL  = HsmAction(C.HSMA_CANCEL)
+)
+
+func (action HsmAction) String() string {
+	return C.GoString(C.hsm_copytool_action2name(C.enum_hsm_copytool_action(action)))
+	// i kinda prefer lowercase...
+	// switch action {
+	// case NONE:
+	// 	return "noop"
+	// case ARCHIVE:
+	// 	return "archive"
+	// case RESTORE:
+	// 	return "restore"
+	// case REMOVE:
+	// 	return "remove"
+	// case CANCEL:
+	// 	return "cancel"
+	// }
+}
+
 // Action returns name of the action.
-func (ai *ActionItemHandle) Action() string {
-	return fmt.Sprintf("%v", (ai.hai.hai_action))
+func (ai *ActionItemHandle) Action() HsmAction {
+	return HsmAction(ai.hai.hai_action)
+}
+
+// Fid returns the FID for the actual file for ths action.
+// This fid or xattrs on this file can be used as a key with
+// the HSM backend.
+func (ai *ActionItemHandle) Fid() Fid {
+	return Fid(ai.hai.hai_fid)
 }
 
 // DataFid returns the FID of the data file.
@@ -146,13 +180,6 @@ func (ai *ActionItemHandle) Fd() (uintptr, error) {
 		return 0, err
 	}
 	return uintptr(rc), nil
-}
-
-// Fid returns the FID for the actual file for ths action.
-// This fid or xattrs on this file can be used as a key with
-// the HSM backend.
-func (ai *ActionItemHandle) Fid() Fid {
-	return Fid(ai.hai.hai_fid)
 }
 
 // Offset returns the offset for the action.

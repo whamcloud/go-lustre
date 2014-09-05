@@ -71,6 +71,12 @@ func (fid Fid) Open(mnt RootDir) (*os.File, error) {
 	return os.Open(fid.Path(mnt))
 }
 
+// Open by fid.
+// Returns readable file handle
+func (fid Fid) OpenFile(mnt RootDir, flags int, perm os.FileMode) (*os.File, error) {
+	return os.OpenFile(fid.Path(mnt), flags, perm)
+}
+
 // Pathname returns a path for a FID.
 //
 // If the fid is referred to by more than one file (i.e. hard links),

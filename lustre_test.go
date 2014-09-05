@@ -37,9 +37,16 @@ func TestMountRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = MountRoot("/tmp/")
+	_, err = MountRoot("/usr/share/man")
 	if err == nil {
-		t.Fatal("oops /tmp is not Lustre")
+		t.Fatal("oops /usr/share/man is not Lustre")
 	}
-
+	_, err = MountRoot("/proc/fs/lustre")
+	if err == nil {
+		t.Fatal("oops /proc/fs/lustre is not Lustre")
+	}
+	_, err = MountRoot("/dev/pts")
+	if err == nil {
+		t.Fatal("oops /dev/pts is not Lustre")
+	}
 }
