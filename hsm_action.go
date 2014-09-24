@@ -30,7 +30,7 @@ type (
 func CoordinatorConnection(path RootDir) (*Coordinator, error) {
 	var cdt = Coordinator{}
 
-	_, err := C.llapi_hsm_copytool_register(&cdt.hcp, C.CString(string(path)), 0, 0, nil)
+	_, err := C.llapi_hsm_copytool_register(&cdt.hcp, C.CString(string(path)), 0, nil, 0)
 	if err != nil {
 		return nil, err
 	}
