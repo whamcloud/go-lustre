@@ -32,7 +32,6 @@ func LookupFid(path string) (*Fid, error) {
 	fid := Fid{}
 	_, err := C.llapi_path2fid(C.CString(path), (*C.lustre_fid)(&fid))
 	if err != nil {
-		fmt.Println(path, err)
 		return nil, err
 	}
 	return &fid, nil
