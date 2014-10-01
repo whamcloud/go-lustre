@@ -8,6 +8,7 @@ import "C"
 
 import (
 	"fmt"
+	"log"
 )
 
 type (
@@ -88,6 +89,19 @@ func (ai *ActionItem) Begin(mdtIndex int, openFlags int, isError bool) (*ActionI
 
 func (ai *ActionItem) String() string {
 	return (*ActionItemHandle)(ai).String()
+}
+
+func (ai *ActionItem) ArchiveId() uint {
+	return ai.archiveId
+}
+
+func (ai *ActionItem) FailImmediately(errval int) {
+	aih, err := ai.Begin(0, 0, true)
+	if err != nil {
+		log.Println("begin failed: %s", ai.String())
+		return
+	}
+	aih.End(0, 0, 0, errval)
 }
 
 func lengthStr(length uint64) string {
