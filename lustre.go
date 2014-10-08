@@ -45,6 +45,12 @@ func MountId(mountPath string) (string, error) {
 
 type RootDir string
 
+// Join args with root dir to create an absolute path.
+// FIXME: replace this with OpenAt and friends
+func (root RootDir) Join(args ...string) string {
+	return path.Join(string(root), path.Join(args...))
+}
+
 // Determine if given directory is the one true magical DOT_LUSTRE directory.
 func isDotLustre(dir string) bool {
 	fi, err := os.Lstat(dir)

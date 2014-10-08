@@ -10,8 +10,6 @@ import "C"
 import (
 	"fmt"
 	"unsafe"
-	// "io/ioutil"
-	// "unsafe"
 )
 
 // Request submits an HSM request for list of files

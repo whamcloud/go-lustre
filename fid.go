@@ -59,6 +59,15 @@ func (fid Fid) Pathnames(mnt RootDir) ([]string, error) {
 	return FidPathnames(mnt, fid.String())
 }
 
+// Pathnames returns all paths for a FID.
+//
+// This returns a slice containing all names that reference
+// the FID.
+//
+func (fid Fid) AbsPathnames(mnt RootDir) ([]string, error) {
+	return FidAbsPathnames(mnt, fid.String())
+}
+
 // Path returns the fid path.
 func (fid Fid) Path(mnt RootDir) string {
 	return FidPath(mnt, fid.String())
@@ -99,12 +108,7 @@ func FidPath(mnt RootDir, fidstr string) string {
 	return path.Join(string(mnt), ".lustre", "fid", fidstr)
 }
 
-// Pathnames returns all paths for a FIDSTR.
-//
-// This returns a slice containing all names that reference
-// the FID.
-//
-func FidPathnames(mnt RootDir, fidstr string) ([]string, error) {
+func fidPathnames(mnt RootDir, fidstr string, absPath bool) ([]string, error) {
 	var recno int64 = 0
 	var linkno int = 0
 	var prev_linkno int = -1
@@ -115,11 +119,32 @@ func FidPathnames(mnt RootDir, fidstr string) ([]string, error) {
 		if err != nil {
 			return paths, err
 		}
-		paths = append(paths, path.Join(string(mnt), p))
+
+		if absPath {
+			p = path.Join(string(mnt), p)
+		}
+		paths = append(paths, p)
+
 	}
-
 	return paths, nil
+}
 
+// Pathnames returns all paths for a FIDSTR.
+//
+// This returns a slice containing all names that reference
+// the FID.
+//
+func FidAbsPathnames(mnt RootDir, fidstr string) ([]string, error) {
+	return fidPathnames(mnt, fidstr, true)
+}
+
+// Pathnames returns all paths for a FIDSTR.
+//
+// This returns a slice containing all names that reference
+// the FID.
+//
+func FidPathnames(mnt RootDir, fidstr string) ([]string, error) {
+	return fidPathnames(mnt, fidstr, false)
 }
 
 type FidPathError struct {
