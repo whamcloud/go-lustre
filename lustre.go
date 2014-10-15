@@ -1,5 +1,6 @@
 // Package lustre provides access to many of the functions avialable in liblustreapi.
 //
+// Currently, this includes the HSM Copytool API, managing Fids, and reading changelogs.
 package lustre
 
 //

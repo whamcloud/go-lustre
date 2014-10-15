@@ -91,10 +91,13 @@ func (ai *ActionItem) String() string {
 	return (*ActionItemHandle)(ai).String()
 }
 
+// ArchiveId returns the archive id associated with teh ActionItem.
 func (ai *ActionItem) ArchiveId() uint {
 	return ai.archiveId
 }
 
+// FailImmediately completes the ActinoItem with given error.
+// The passed ActionItem is no longer valid when this function returns.
 func (ai *ActionItem) FailImmediately(errval int) {
 	aih, err := ai.Begin(0, 0, true)
 	if err != nil {

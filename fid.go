@@ -28,6 +28,7 @@ func (fid Fid) IsZero() bool {
 	return fid.f_seq == 0 && fid.f_oid == 0 && fid.f_ver == 0
 }
 
+// LookupFid returns the Fid for the given file or an error.
 func LookupFid(path string) (*Fid, error) {
 	fid := Fid{}
 	_, err := C.llapi_path2fid(C.CString(path), (*C.lustre_fid)(&fid))
@@ -68,7 +69,7 @@ func (fid Fid) AbsPathnames(mnt RootDir) ([]string, error) {
 	return FidAbsPathnames(mnt, fid.String())
 }
 
-// Path returns the fid path.
+// Path returns the "open by fid" path.
 func (fid Fid) Path(mnt RootDir) string {
 	return FidPath(mnt, fid.String())
 }

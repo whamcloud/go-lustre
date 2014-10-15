@@ -39,6 +39,14 @@ func stat_to_cstat(fi os.FileInfo) *C.struct_stat {
 	return &st
 }
 
+// HsmImport creates a placeholder file in Lustre that refers to the
+// file contents stored in an HSM backend.  The file is created in the
+// "released" state, and the contents will be retrieved when the file is opened
+// or an explicit restore is requested.
+//
+// TODO: using an os.FileInfo to pass the file metadata doesn't work for all cases. This
+// should be simple struct the caller can populate. (Though just using syscall.Stat_t
+// is also tempting.)
 func HsmImport(
 	f string,
 	archive uint,
