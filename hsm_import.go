@@ -73,7 +73,7 @@ func HsmImport(
 		C.int(stripe_count),
 		C.int(stripe_pattern),
 		nil,
-		(*_Ctype_lustre_fid)(&fid),
+		(*C.lustre_fid)(&fid),
 	)
 	if rc < 0 {
 		return nil, err
