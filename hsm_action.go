@@ -49,7 +49,6 @@ func (cdt *Coordinator) Recv() ([]ActionItem, error) {
 	if rc < 0 || err != nil {
 		return nil, err
 	}
-	defer C.llapi_hsm_action_list_free(&hal)
 
 	items := make([]ActionItem, 0, int(hal.hal_count))
 	hai = C.hai_first(hal)
@@ -120,8 +119,8 @@ func (ai *ActionItemHandle) String() string {
 
 // Progress reports current progress of an action.
 func (ai *ActionItemHandle) Progress(offset uint64, length uint64, totalLength uint64, flags int) error {
-	extent := C.struct_hsm_extent{C.ulonglong(offset), C.ulonglong(length)}
-	rc, err := C.llapi_hsm_action_progress(ai.hcap, &extent, C.ulonglong(totalLength), C.int(flags))
+	extent := C.struct_hsm_extent{C.__u64(offset), C.__u64(length)}
+	rc, err := C.llapi_hsm_action_progress(ai.hcap, &extent, C.__u64(totalLength), C.int(flags))
 	if rc < 0 || err != nil {
 		return err
 	}
@@ -131,7 +130,7 @@ func (ai *ActionItemHandle) Progress(offset uint64, length uint64, totalLength u
 // End completes an action with specified status.
 // No more requests should be made on this action after calling this.
 func (ai *ActionItemHandle) End(offset uint64, length uint64, flags int, errval int) error {
-	extent := C.struct_hsm_extent{C.ulonglong(offset), C.ulonglong(length)}
+	extent := C.struct_hsm_extent{C.__u64(offset), C.__u64(length)}
 	rc, err := C.llapi_hsm_action_end(&ai.hcap, &extent, C.int(flags), C.int(errval))
 	if rc < 0 || err != nil {
 		return err
