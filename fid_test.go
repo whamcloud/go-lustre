@@ -1,85 +1,102 @@
-package lustre
+package lustre_test
 
 import (
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	. "hpdd/lustre"
+
+	"fmt"
 	"io/ioutil"
-	"testing"
-	//    . "gopkg.in/check.v1"
+	"os"
+	"path"
+	"reflect"
 )
 
-func TestFid(t *testing.T) {
-	mnt, err := MountRoot(mntPath)
-	if err != nil {
-		t.Fatal("use --mnt <path> to run lustre tests")
-	}
-	f, err := ioutil.TempFile(string(mnt), "test")
-	if err != nil {
-		t.Errorf("Unable to create file in %s", mntPath)
-		return
-	}
-	name := f.Name()
-	if name == "" {
-		t.Error("Unable to get file name")
-		return
-	}
-	fid, err := LookupFid(name)
-	if err != nil {
-		t.Error("Unable to get fid", err)
-		return
-	}
-	fids, err := fid.Pathnames(mnt)
-	if err != nil {
-		t.Error("fid.Paths: ", err, fids)
-	}
+var _ = Describe("In the FID Utility Library", func() {
+	Describe("lookup functions,", func() {
+		var testFile *os.File
+		var mnt RootDir
+		var fid *Fid
+		var err error
 
-}
+		BeforeEach(func() {
+			mnt, err = MountRoot(ClientMount)
+			Ω(err).ShouldNot(HaveOccurred())
 
-func TestParseFid(t *testing.T) {
-	str := "[0x123:0x456:0x0]"
-	fid, err := ParseFid("[0x123:0x456:0x0]")
-	if err != nil {
-		t.Error("Unable to parse fid:", err)
-	} else {
-		if fid.f_seq != 0x123 || fid.f_oid != 0x456 || fid.f_ver != 0 {
-			t.Errorf("Parse failure: %v", fid)
-		}
-	}
-	if fid.String() != str {
-		t.Error("Did not convert back to string ")
-	}
-}
+			testFile, err = ioutil.TempFile(string(mnt), "test")
+			Ω(err).ShouldNot(HaveOccurred())
+			testFile.Close()
+		})
+		AfterEach(func() {
+			os.Remove(testFile.Name())
+		})
 
-func TestParseBadFid(t *testing.T) {
-	fid2, err := ParseFid("[0x123:0x456:bad]")
-	if err == nil {
-		t.Error("Failed to detect bad FID string (%v)", fid2)
-	}
+		Describe("LookupFid()", func() {
+			It("should return a valid FID, given a valid path.", func() {
+				fid, err = LookupFid(testFile.Name())
+				Ω(err).ShouldNot(HaveOccurred())
+				Expect(reflect.TypeOf(fid).String()).To(Equal("*lustre.Fid"))
+			})
 
-}
+			It("should return an error, given an invalid path.", func() {
+				_, err := LookupFid("/foo/bar/baz")
+				Ω(err).Should(HaveOccurred())
+			})
+		})
 
-func TestParseZeroFid(t *testing.T) {
-	fid, err := ParseFid("[0x0:0x0:0x0]")
-	if err != nil {
-		t.Error("Unable to parse fid:", err)
-	} else {
-		if !fid.IsZero() {
-			t.Errorf("fid should be zero: %v", fid)
-		}
-	}
+		Describe("FidPathname()", func() {
+			It("should return a file path, given a valid fid.", func() {
+				fid, err = LookupFid(testFile.Name())
+				Ω(err).ShouldNot(HaveOccurred())
 
-}
+				name, err := FidPathname(mnt, fid.String(), 0)
+				Ω(err).ShouldNot(HaveOccurred())
 
-/*
-func Test(t *testing.T) {TestingT(t)}
+				Expect(name).To(Equal(path.Base(testFile.Name())))
+			})
+		})
 
-func (s *SuiteType) SetUpSuite(c *C) {
-    fmt.PrintLn("setup suite")a
+		Describe("FidPathnames()", func() {
+			It("should return an array of paths, given a valid fid.", func() {
+				fid, err = LookupFid(testFile.Name())
+				Ω(err).ShouldNot(HaveOccurred())
 
-type MySuite struct{}
+				names, err := FidPathnames(mnt, fid.String())
+				Ω(err).ShouldNot(HaveOccurred())
+				Expect(names[0]).To(Equal(path.Base(testFile.Name())))
+			})
+		})
+	})
 
-var _ = Suite(&MySuite{})
+	Describe("parsing functions,", func() {
+		Describe("ParseFid()", func() {
+			It("should correctly parse a valid fid string.", func() {
+				seq := 0x123
+				oid := 0x456
+				ver := 0
+				str := fmt.Sprintf("[%#x:%#x:%#x]", seq, oid, ver)
+				fid, err := ParseFid(str)
+				Ω(err).ShouldNot(HaveOccurred())
 
-func (s *MySuite) TestHelloWorld(c *C) {
-    c.Assert(42, Equals, 42)
-}
+				// Can't access these fields because they're
+				// not exported from the lustre package.
+				/*Expect(fid.f_seq).To(Equal(seq))
+				Expect(fid.f_oid).To(Equal(oid))
+				Expect(fid.f_ver).To(Equal(ver))*/
+				Expect(fid.String()).To(Equal(str))
+			})
 
-*/
+			It("should correctly parse the zero FID.", func() {
+				fid, err := ParseFid("[0x0:0x0:0x0]")
+				Ω(err).ShouldNot(HaveOccurred())
+
+				Expect(fid.IsZero()).To(BeTrue())
+			})
+
+			It("should return an error, given a bad FID string.", func() {
+				_, err := ParseFid("[0x123:0x456:bad]")
+				Ω(err).Should(HaveOccurred())
+			})
+		})
+	})
+})

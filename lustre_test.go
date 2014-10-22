@@ -1,52 +1,38 @@
-package lustre
+package lustre_test
 
 import (
-	"flag"
-	"testing"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	. "hpdd/lustre"
 )
 
-var mntPath string
+var _ = Describe("In the Lustre API functions,", func() {
+	Describe("Version()", func() {
+		It("should return the current Lustre version.", func() {
+			Expect(Version()).ToNot(Equal(""))
+		})
+	})
 
-func init() {
-	flag.StringVar(&mntPath, "mnt", "", "Lustre mountpoint")
-}
+	Describe("MountId()", func() {
+		It("should not return an error, given a valid mount.", func() {
+			id, err := MountId(ClientMount)
+			Ω(err).ShouldNot(HaveOccurred())
 
-func TestVersion(t *testing.T) {
-	if mntPath == "" {
-		t.Fatal("use --mnt <path> to run lustre tests")
-	}
-	version := Version()
-	if version == "" {
-		t.Error("Unable to get lustre version.")
-	}
-}
+			Expect(id).ToNot(Equal(""))
+		})
+	})
 
-func TestMountId(t *testing.T) {
-	if mntPath == "" {
-		t.Fatal("use --mnt <path> to run lustre tests")
-	}
-	_, err := MountId(mntPath)
-	if err != nil {
-		t.Error(err)
-	}
-}
+	Describe("MountRoot()", func() {
+		It("should not fail, given a valid path.", func() {
+			mnt, err := MountRoot(ClientMount)
+			Ω(err).ShouldNot(HaveOccurred())
 
-func TestMountRoot(t *testing.T) {
-	_, err := MountRoot(mntPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+			Expect(string(mnt)).To(Equal(ClientMount))
+		})
 
-	_, err = MountRoot("/usr/share/man")
-	if err == nil {
-		t.Fatal("oops /usr/share/man is not Lustre")
-	}
-	_, err = MountRoot("/proc/fs/lustre")
-	if err == nil {
-		t.Fatal("oops /proc/fs/lustre is not Lustre")
-	}
-	_, err = MountRoot("/dev/pts")
-	if err == nil {
-		t.Fatal("oops /dev/pts is not Lustre")
-	}
-}
+		It("should fail, given a non-Lustre path.", func() {
+			_, err := MountRoot("/usr/share/man")
+			Ω(err).Should(HaveOccurred())
+		})
+	})
+})
