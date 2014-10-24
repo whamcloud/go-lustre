@@ -16,6 +16,10 @@ import (
 	"syscall"
 )
 
+const (
+	PROC_DIR = "/proc/fs/lustre"
+)
+
 // Version returns the current Lustre version string.
 func Version() string {
 	var buffer [4096]C.char
