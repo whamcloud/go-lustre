@@ -56,8 +56,18 @@ func (m MountPoints) Less(i, j int) bool { return m[i].priority < m[j].priority 
 var activeMounts []*MountPoint
 
 // RememberMount saves the mount path so it will be unmounted at specificed priroity.
-func RememberMount(path string, priority int) {
-	activeMounts = append(activeMounts, &MountPoint{path, priority})
+func RememberMount(mnt string, priority int) {
+	activeMounts = append(activeMounts, &MountPoint{mnt, priority})
+}
+
+func ForgetMount(mnt string) error {
+	for i, mp := range activeMounts {
+		if mp.path == mnt {
+			activeMounts = append(activeMounts[:i], activeMounts[i+1:]...)
+			break
+		}
+	}
+	return nil
 }
 
 func shell(name string, arg ...string) (string, error) {
@@ -174,14 +184,20 @@ func DoTargetMounts(targets []LustreTarget) error {
 	return nil
 }
 
+func Unmount(mountPoint string) error {
+	cmd := CL("umount", mountPoint).Command()
+	fmt.Fprintf(GinkgoWriter, "Unmounting %s... ", mountPoint)
+	session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
+	Ω(err).ShouldNot(HaveOccurred())
+	session.Wait(60 * time.Second)
+	ForgetMount(mountPoint)
+	fmt.Fprintf(GinkgoWriter, "Done.\n")
+	return nil
+}
+
 func DoUnmounts(paths []string) error {
 	for _, mountPoint := range paths {
-		cmd := CL("umount", mountPoint).Command()
-		fmt.Fprintf(GinkgoWriter, "Unmounting %s... ", mountPoint)
-		session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
-		Ω(err).ShouldNot(HaveOccurred())
-		session.Wait(60 * time.Second)
-		fmt.Fprintf(GinkgoWriter, "Done.\n")
+		Unmount(mountPoint)
 	}
 
 	return nil

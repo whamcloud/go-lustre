@@ -49,10 +49,7 @@ func DoCopytoolTeardown() error {
 		CopytoolCmd.Wait()
 	}
 
-	// unmountList := []string{CopytoolMount}
-	// if err := DoUnmounts(unmountList); err != nil {
-	// return err
-	// }
+	Unmount(CopytoolMount)
 
 	if err := os.RemoveAll(HsmArchive); err != nil {
 		return err
@@ -62,8 +59,7 @@ func DoCopytoolTeardown() error {
 }
 
 func MarkFileForArchive(targetFile string) error {
-	archiveCommand := []string{"lfs", "hsm_archive", "--archive", "1", targetFile}
-	cmd := exec.Command(archiveCommand[0], archiveCommand[1:]...)
+	cmd := CL("lfs", "hsm_archive", "--archive", "1", targetFile).Command()
 	session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 	if err != nil {
 		return err
