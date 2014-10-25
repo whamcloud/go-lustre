@@ -21,13 +21,7 @@ func DoCopytoolSetup(backendType string) error {
 		return err
 	}
 
-	mgsNid, err := GetMgsNid()
-	if err != nil {
-		return err
-	}
-	ctMountSpec := fmt.Sprintf("%s:/%s", mgsNid, TestFsName)
-	copytoolMounts := map[string]string{ctMountSpec: CopytoolMount}
-	if err := DoClientMounts(copytoolMounts); err != nil {
+	if err := DoClientMounts([]string{CopytoolMount}, nil); err != nil {
 		return err
 	}
 

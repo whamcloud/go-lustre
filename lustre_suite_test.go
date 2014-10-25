@@ -53,25 +53,8 @@ func (m MountPoints) Len() int           { return len(m) }
 func (m MountPoints) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 func (m MountPoints) Less(i, j int) bool { return m[i].priority < m[j].priority }
 
-var activeMounts []*MountPoint
-
-// RememberMount saves the mount path so it will be unmounted at specificed priroity.
-func RememberMount(mnt string, priority int) {
-	activeMounts = append(activeMounts, &MountPoint{mnt, priority})
-}
-
-func ForgetMount(mnt string) error {
-	for i, mp := range activeMounts {
-		if mp.path == mnt {
-			activeMounts = append(activeMounts[:i], activeMounts[i+1:]...)
-			break
-		}
-	}
-	return nil
-}
-
 func shell(name string, arg ...string) (string, error) {
-	cmd := exec.Command(name, arg...)
+	cmd := CL(name, arg...).Command()
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -149,8 +132,14 @@ func GetMgsNid() (string, error) {
 	// return "", errors.New("Unknown error resolving MGS NID.")
 }
 
-func DoClientMounts(clientMounts map[string]string) error {
-	for mountSpec, mountPoint := range clientMounts {
+func DoClientMounts(clientMounts []string, mounts *[]*MountPoint) error {
+	mgsNid, err := GetMgsNid()
+	if err != nil {
+		panic(err)
+	}
+	mountSpec := fmt.Sprintf("%s:/%s", mgsNid, TestFsName)
+
+	for _, mountPoint := range clientMounts {
 		if err := os.MkdirAll(mountPoint, 0755); err != nil {
 			return err
 		}
@@ -160,13 +149,15 @@ func DoClientMounts(clientMounts map[string]string) error {
 		Ω(err).ShouldNot(HaveOccurred())
 		session.Wait(60 * time.Second)
 		fmt.Fprintf(GinkgoWriter, "Done.\n")
-		RememberMount(mountPoint, CLIENT_PRI)
+		if mounts != nil {
+			*mounts = append(*mounts, &MountPoint{mountPoint, CLIENT_PRI})
+		}
 	}
 
 	return nil
 }
 
-func DoTargetMounts(targets []LustreTarget) error {
+func DoTargetMounts(targets []LustreTarget, mounts *[]*MountPoint) error {
 	for _, t := range targets {
 		mountPoint := path.Join(TestPrefix, t.name+"Mount")
 		if err := os.MkdirAll(mountPoint, 0755); err != nil {
@@ -178,7 +169,7 @@ func DoTargetMounts(targets []LustreTarget) error {
 		Ω(err).ShouldNot(HaveOccurred())
 		session.Wait(60 * time.Second)
 		fmt.Fprintf(GinkgoWriter, "Done.\n")
-		RememberMount(mountPoint, t.umountPriority)
+		*mounts = append(*mounts, &MountPoint{mountPoint, t.umountPriority})
 	}
 
 	return nil
@@ -190,7 +181,6 @@ func Unmount(mountPoint string) error {
 	session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 	Ω(err).ShouldNot(HaveOccurred())
 	session.Wait(60 * time.Second)
-	ForgetMount(mountPoint)
 	fmt.Fprintf(GinkgoWriter, "Done.\n")
 	return nil
 }
@@ -203,7 +193,7 @@ func DoUnmounts(paths []string) error {
 	return nil
 }
 
-func DoLustreSetup(targets []LustreTarget) {
+func DoLustreSetup(targets []LustreTarget) (mounts []*MountPoint) {
 	mgsNid, err := GetMgsNid()
 	if err != nil {
 		panic(err)
@@ -256,15 +246,14 @@ func DoLustreSetup(targets []LustreTarget) {
 		session.Wait(60 * time.Second)
 	}
 
-	if err := DoTargetMounts(targets); err != nil {
+	if err := DoTargetMounts(targets, &mounts); err != nil {
 		panic(err)
 	}
 
-	clientMountSpec := fmt.Sprintf("%s:/%s", mgsNid, TestFsName)
-	clientMounts := map[string]string{clientMountSpec: ClientMount}
-	if err := DoClientMounts(clientMounts); err != nil {
+	if err := DoClientMounts([]string{ClientMount}, &mounts); err != nil {
 		panic(err)
 	}
+	return mounts
 }
 
 func DoLustreTeardown(mounts []*MountPoint) {
@@ -300,13 +289,14 @@ func TestLustre(t *testing.T) {
 		{"mdt00", path.Join(TestPrefix, "mdt00LoopFile"), 512 * 1e6, MDT_PRI},
 		{"ost00", path.Join(TestPrefix, "ost00LoopFile"), 1024 * 1e6, OST_PRI},
 	}
+	var activeMounts []*MountPoint
 
 	BeforeSuite(func() {
 		var err error
 		CopytoolCLI, err = Build("hpdd/cmds/copytool")
 		Ω(err).ShouldNot(HaveOccurred())
 		loadModules()
-		DoLustreSetup(targets)
+		activeMounts = DoLustreSetup(targets)
 		ToggleHsmCoordinatorState("enabled")
 	})
 
