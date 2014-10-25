@@ -7,10 +7,12 @@ import (
 
 	"errors"
 	"fmt"
-	"net"
+	// "net"
+	"bytes"
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -18,112 +20,164 @@ import (
 
 type (
 	LustreTarget struct {
-		path string
-		size int64
+		name           string
+		path           string
+		size           int64
+		umountPriority int
 	}
+
+	MountPoint struct {
+		path     string
+		priority int
+	}
+
+	MountPoints []*MountPoint
 )
 
-var TestPrefix = "/tmp/goluTest"
-var TestFsName = "goluTest"
+const (
+	CLIENT_PRI = iota
+	MDT_PRI    = iota + 1
+	OST_PRI    = iota + 2
+	MGS_PRI    = iota + 3
+)
+
+const (
+	TestPrefix = "/tmp/goluTest"
+	TestFsName = "goluTest"
+)
+
 var CopytoolCLI string
+var ClientMount = fmt.Sprintf("%s/client", TestPrefix)
 
-// Could just exec dd, but where would the fun be in that?
-// I'm tryin' to learn something here!
-func CreateLoopFile(loopPath string, loopSize int64) error {
-	var err error
-	var inFile, outFile *os.File
-	var totalRead int64
-	readBuffer := make([]byte, 1e6)
+func (m MountPoints) Len() int           { return len(m) }
+func (m MountPoints) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+func (m MountPoints) Less(i, j int) bool { return m[i].priority < m[j].priority }
 
-	if err := os.MkdirAll(path.Dir(loopPath), 0755); err != nil {
-		return err
-	}
+var activeMounts []*MountPoint
 
-	if inFile, err = os.Open("/dev/zero"); err != nil {
-		return err
-	}
-	defer inFile.Close()
-
-	if outFile, err = os.Create(loopPath); err != nil {
-		return err
-	}
-	defer outFile.Close()
-
-	for {
-		n, err := inFile.Read(readBuffer)
-		if err != nil {
-			return err
-		}
-		if totalRead+int64(n) > loopSize {
-			n = int(loopSize - (totalRead + int64(n)))
-		}
-		if n <= 0 {
-			break
-		}
-		totalRead += int64(n)
-		if _, err := outFile.Write(readBuffer[:n]); err != nil {
-			return err
-		}
-	}
-
-	return nil
+// RememberMount saves the mount path so it will be unmounted at specificed priroity.
+func RememberMount(path string, priority int) {
+	activeMounts = append(activeMounts, &MountPoint{path, priority})
 }
 
-func GetMgsNid() (string, error) {
-	addrs, err := net.InterfaceAddrs()
+func shell(name string, arg ...string) (string, error) {
+	cmd := exec.Command(name, arg...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
 	if err != nil {
 		return "", err
 	}
-	if ipnet, ok := addrs[1].(*net.IPNet); ok {
-		return fmt.Sprintf("%s@tcp", ipnet.IP.String()), nil
-	}
-	return "", errors.New("Unknown error resolving MGS NID.")
+	return out.String(), nil
 }
 
-func DoClientMounts(clientMounts *map[string]string) error {
-	clientMountCommand := []string{"mount", "-tlustre", "", ""}
-	for mountSpec, mountPoint := range *clientMounts {
+type CmdLine struct {
+	Name string
+	Args []string
+}
+
+func CL(name string, arg ...string) *CmdLine {
+	return &CmdLine{Name: name, Args: arg}
+}
+
+func (c *CmdLine) Add(arg ...string) {
+	c.Args = append(c.Args, arg...)
+}
+
+func (c *CmdLine) Command() *exec.Cmd {
+	fmt.Fprintf(GinkgoWriter, "+ %s %s\n", c.Name, strings.Join(c.Args, " "))
+	return exec.Command(c.Name, c.Args...)
+}
+
+func CreateLoopFile(loopPath string, loopSize int64) error {
+	err := os.MkdirAll(path.Dir(loopPath), 0755)
+	if err != nil {
+		return err
+	}
+
+	outFile, err := os.Create(loopPath)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+	outFile.Seek(loopSize-1, 0)
+	outFile.Write([]byte{0})
+	return nil
+}
+
+func loadModules() {
+	cmd := CL("modprobe", "lustre").Command()
+	session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
+	Ω(err).ShouldNot(HaveOccurred())
+	session.Wait(60 * time.Second)
+	fmt.Fprintf(GinkgoWriter, "Done.\n")
+}
+
+func unloadModules() {
+	cmd := CL("lustre_rmmod").Command()
+	session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
+	Ω(err).ShouldNot(HaveOccurred())
+	session.Wait(60 * time.Second)
+	fmt.Fprintf(GinkgoWriter, "Done.\n")
+}
+
+func GetMgsNid() (string, error) {
+	s, err := shell("lctl", "list_nids")
+	if err != nil {
+		return "", err
+	}
+	return strings.Trim(s, "\n"), nil
+
+	// leave this just in case above doesn't work
+	// addrs, err := net.InterfaceAddrs()
+	// if err != nil {
+	// return "", err
+	// }
+	// if ipnet, ok := addrs[1].(*net.IPNet); ok {
+	// return fmt.Sprintf("%s@tcp", ipnet.IP.String()), nil
+	// }
+	// return "", errors.New("Unknown error resolving MGS NID.")
+}
+
+func DoClientMounts(clientMounts map[string]string) error {
+	for mountSpec, mountPoint := range clientMounts {
 		if err := os.MkdirAll(mountPoint, 0755); err != nil {
 			return err
 		}
-		clientMountCommand[2] = mountSpec
-		clientMountCommand[3] = mountPoint
+		cmd := CL("mount", "-tlustre", mountSpec, mountPoint).Command()
 		fmt.Fprintf(GinkgoWriter, "Mounting %s at %s... ", mountSpec, mountPoint)
-		cmd := exec.Command(clientMountCommand[0], clientMountCommand[1:]...)
 		session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 		Ω(err).ShouldNot(HaveOccurred())
 		session.Wait(60 * time.Second)
 		fmt.Fprintf(GinkgoWriter, "Done.\n")
+		RememberMount(mountPoint, CLIENT_PRI)
 	}
 
 	return nil
 }
 
-func DoTargetMounts(mountPoints *map[string]string, blockDevices *map[string]*LustreTarget) error {
-	mountCommand := []string{"mount", "-oloop", "-tlustre", "", ""}
-	for target, mountPoint := range *mountPoints {
+func DoTargetMounts(targets []LustreTarget) error {
+	for _, t := range targets {
+		mountPoint := path.Join(TestPrefix, t.name+"Mount")
 		if err := os.MkdirAll(mountPoint, 0755); err != nil {
 			panic(err)
 		}
-		mountCommand[3] = (*blockDevices)[target].path
-		mountCommand[4] = mountPoint
-		fmt.Fprintf(GinkgoWriter, "Mounting %s at %s... ", (*blockDevices)[target].path, mountPoint)
-		cmd := exec.Command(mountCommand[0], mountCommand[1:]...)
+		cmd := CL("mount", "-oloop", "-tlustre", t.path, mountPoint).Command()
+		fmt.Fprintf(GinkgoWriter, "Mounting %s at %s... ", t.path, mountPoint)
 		session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 		Ω(err).ShouldNot(HaveOccurred())
 		session.Wait(60 * time.Second)
 		fmt.Fprintf(GinkgoWriter, "Done.\n")
+		RememberMount(mountPoint, t.umountPriority)
 	}
 
 	return nil
 }
 
-func DoUnmounts(mountPoints *[]string) error {
-	umountCommand := []string{"umount", ""}
-	for _, mountPoint := range *mountPoints {
-		umountCommand[1] = mountPoint
+func DoUnmounts(paths []string) error {
+	for _, mountPoint := range paths {
+		cmd := CL("umount", mountPoint).Command()
 		fmt.Fprintf(GinkgoWriter, "Unmounting %s... ", mountPoint)
-		cmd := exec.Command(umountCommand[0], umountCommand[1:]...)
 		session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 		Ω(err).ShouldNot(HaveOccurred())
 		session.Wait(60 * time.Second)
@@ -133,86 +187,77 @@ func DoUnmounts(mountPoints *[]string) error {
 	return nil
 }
 
-func DoLustreSetup(blockDevices *map[string]*LustreTarget,
-	mountPoints *map[string]string) {
-
+func DoLustreSetup(targets []LustreTarget) {
 	mgsNid, err := GetMgsNid()
 	if err != nil {
 		panic(err)
 	}
 	targetCount := make(map[string]int)
-	mkfsCommand := []string{"mkfs.lustre", "", "", "", "", "", ""}
 
-	for target, loopFile := range *blockDevices {
-		mkfsArgs := mkfsCommand[1:]
-		info, err := os.Stat(loopFile.path)
+	for _, t := range targets {
+		mkfs := CL("mkfs.lustre")
+		info, err := os.Stat(t.path)
 		if err == nil {
-			fmt.Fprintf(GinkgoWriter, "Loop file %s already exists: %v\n", loopFile.path, info)
+			fmt.Fprintf(GinkgoWriter, "Loop file %s already exists: %v\n", t.path, info)
 		} else {
-			fmt.Fprintf(GinkgoWriter, "Creating %s for %s... ", loopFile.path, target)
-			if err := CreateLoopFile(loopFile.path, loopFile.size); err != nil {
+			fmt.Fprintf(GinkgoWriter, "Creating %s for %s... ", t.path, t.name)
+			if err := CreateLoopFile(t.path, t.size); err != nil {
 				panic(err)
 			}
 			fmt.Fprintf(GinkgoWriter, "Done.\n")
 		}
 
 		switch {
-		case strings.Index(target, "mgs") >= 0:
+		case strings.Index(t.name, "mgs") >= 0:
 			if targetCount["mgs"] > 0 {
 				panic(errors.New("Too many MGSes!"))
 			}
 			targetCount["mgs"]++
-			mkfsCommand[1] = "--mgs"
-			mkfsCommand[2] = fmt.Sprintf("--device-size=%d", (*blockDevices)[target].size/1024)
-			mkfsCommand[3] = loopFile.path
-			mkfsArgs = mkfsCommand[1:4]
-		case strings.Index(target, "mdt") >= 0:
-			mkfsCommand[1] = "--mdt"
-			mkfsCommand[2] = fmt.Sprintf("--index=%d", targetCount["mdt"])
-			mkfsCommand[3] = fmt.Sprintf("--fsname=%s", TestFsName)
-			mkfsCommand[4] = fmt.Sprintf("--mgsnode=%s", mgsNid)
+			mkfs.Add("--mgs")
+		case strings.Index(t.name, "mdt") >= 0:
+			mkfs.Add("--mdt")
+			mkfs.Add(fmt.Sprintf("--index=%d", targetCount["mdt"]))
+			mkfs.Add("--fsname", TestFsName)
+			mkfs.Add("--mgsnode", mgsNid)
 
 			targetCount["mdt"]++
-		case strings.Index(target, "ost") >= 0:
-			mkfsCommand[1] = "--ost"
-			mkfsCommand[2] = fmt.Sprintf("--index=%d", targetCount["ost"])
-			mkfsCommand[3] = fmt.Sprintf("--fsname=%s", TestFsName)
-			mkfsCommand[4] = fmt.Sprintf("--mgsnode=%s", mgsNid)
+		case strings.Index(t.name, "ost") >= 0:
+			mkfs.Add("--ost")
+			mkfs.Add(fmt.Sprintf("--index=%d", targetCount["ost"]))
+			mkfs.Add("--fsname", TestFsName)
+			mkfs.Add("--mgsnode", mgsNid)
 
 			targetCount["ost"]++
 		default:
 			panic(errors.New("Unknown target type"))
 		}
-		mkfsCommand[5] = fmt.Sprintf("--device-size=%d", (*blockDevices)[target].size/1024)
-		mkfsCommand[6] = loopFile.path
+		mkfs.Add(fmt.Sprintf("--device-size=%d", t.size/1024))
+		mkfs.Add(t.path)
 
-		cmd := exec.Command(mkfsCommand[0], mkfsArgs...)
+		cmd := mkfs.Command()
 		session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 		Ω(err).ShouldNot(HaveOccurred())
 		session.Wait(60 * time.Second)
 	}
 
-	if err := DoTargetMounts(mountPoints, blockDevices); err != nil {
+	if err := DoTargetMounts(targets); err != nil {
 		panic(err)
 	}
 
 	clientMountSpec := fmt.Sprintf("%s:/%s", mgsNid, TestFsName)
-	clientMountPoint := fmt.Sprintf("%s/client", TestPrefix)
-	clientMounts := map[string]string{clientMountSpec: clientMountPoint}
-	if err := DoClientMounts(&clientMounts); err != nil {
+	clientMounts := map[string]string{clientMountSpec: ClientMount}
+	if err := DoClientMounts(clientMounts); err != nil {
 		panic(err)
 	}
 }
 
-func DoLustreTeardown(blockDevices *map[string]*LustreTarget, mountPoints *map[string]string) {
-
-	(*mountPoints)["client"] = fmt.Sprintf("%s/client", TestPrefix)
-	//mountPoints["copytool"] = fmt.Sprintf("%s/client/.ct", TestPrefix)
-	unmountList := make([]string, 0, len(*mountPoints))
-	for _, mountPoint := range *mountPoints {
-		unmountList = append(unmountList, mountPoint)
+func DoLustreTeardown(mounts []*MountPoint) {
+	sort.Sort(MountPoints(mounts))
+	var unmountList []string
+	for _, m := range mounts {
+		unmountList = append(unmountList, m.path)
 	}
-	DoUnmounts(&unmountList)
+	DoUnmounts(unmountList)
 
 	if err := os.RemoveAll(TestPrefix); err != nil {
 		panic(err)
@@ -234,29 +279,25 @@ func ToggleHsmCoordinatorState(state string) error {
 }
 
 func TestLustre(t *testing.T) {
-	blockDevices := map[string]*LustreTarget{
-		"mgs":   {path.Join(TestPrefix, "mgsLoopFile"), 128 * 1e6},
-		"mdt00": {path.Join(TestPrefix, "mdt00LoopFile"), 512 * 1e6},
-		"ost00": {path.Join(TestPrefix, "ost00LoopFile"), 1024 * 1e6},
-	}
-	mountPoints := map[string]string{
-		"mgs":   path.Join(TestPrefix, "mgsMount"),
-		"mdt00": path.Join(TestPrefix, "mdt00Mount"),
-		"ost00": path.Join(TestPrefix, "ost00Mount"),
+	targets := []LustreTarget{
+		{"mgs", path.Join(TestPrefix, "mgsLoopFile"), 128 * 1e6, MGS_PRI},
+		{"mdt00", path.Join(TestPrefix, "mdt00LoopFile"), 512 * 1e6, MDT_PRI},
+		{"ost00", path.Join(TestPrefix, "ost00LoopFile"), 1024 * 1e6, OST_PRI},
 	}
 
 	BeforeSuite(func() {
 		var err error
 		CopytoolCLI, err = Build("hpdd/cmds/copytool")
 		Ω(err).ShouldNot(HaveOccurred())
-
-		DoLustreSetup(&blockDevices, &mountPoints)
+		loadModules()
+		DoLustreSetup(targets)
 		ToggleHsmCoordinatorState("enabled")
 	})
 
 	AfterSuite(func() {
 		CleanupBuildArtifacts()
-		DoLustreTeardown(&blockDevices, &mountPoints)
+		DoLustreTeardown(activeMounts)
+		unloadModules()
 	})
 
 	RegisterFailHandler(Fail)

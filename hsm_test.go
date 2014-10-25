@@ -8,13 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"time"
 )
 
 // TODO: Figure out global shared config.
-var ClientMount = fmt.Sprintf("%s/client", TestPrefix)
-var CopytoolMount = fmt.Sprintf("%s/.ct", ClientMount)
+var CopytoolMount = fmt.Sprintf("%s.ct", ClientMount)
 var HsmArchive = fmt.Sprintf("%s/archive", TestPrefix)
 var CopytoolCmd *exec.Cmd
 
@@ -29,14 +27,12 @@ func DoCopytoolSetup(backendType string) error {
 	}
 	ctMountSpec := fmt.Sprintf("%s:/%s", mgsNid, TestFsName)
 	copytoolMounts := map[string]string{ctMountSpec: CopytoolMount}
-	if err := DoClientMounts(&copytoolMounts); err != nil {
+	if err := DoClientMounts(copytoolMounts); err != nil {
 		return err
 	}
 
 	posixArchive := fmt.Sprintf("%s:%s:1::%s:false", backendType, backendType, HsmArchive)
-	copytoolCommand := []string{CopytoolCLI, "--archive", posixArchive, "--mnt", CopytoolMount}
-	fmt.Fprintf(GinkgoWriter, "Running %s", strings.Join(copytoolCommand, " "))
-	CopytoolCmd := exec.Command(copytoolCommand[0], copytoolCommand...)
+	CopytoolCmd = CL(CopytoolCLI, "--archive", posixArchive, "--mnt", CopytoolMount).Command()
 	if _, err := Start(CopytoolCmd, GinkgoWriter, GinkgoWriter); err != nil {
 		return err
 	}
@@ -53,10 +49,10 @@ func DoCopytoolTeardown() error {
 		CopytoolCmd.Wait()
 	}
 
-	unmountList := []string{CopytoolMount}
-	if err := DoUnmounts(&unmountList); err != nil {
-		return err
-	}
+	// unmountList := []string{CopytoolMount}
+	// if err := DoUnmounts(unmountList); err != nil {
+	// return err
+	// }
 
 	if err := os.RemoveAll(HsmArchive); err != nil {
 		return err
