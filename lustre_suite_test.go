@@ -143,7 +143,7 @@ func DoClientMounts(clientMounts []string, mounts *[]*MountPoint) error {
 		if err := os.MkdirAll(mountPoint, 0755); err != nil {
 			return err
 		}
-		cmd := CL("mount", "-tlustre", mountSpec, mountPoint).Command()
+		cmd := CL("mount", "-tlustre", "-ouser_xattr", mountSpec, mountPoint).Command()
 		fmt.Fprintf(GinkgoWriter, "Mounting %s at %s... ", mountSpec, mountPoint)
 		session, err := Start(cmd, GinkgoWriter, GinkgoWriter)
 		Ω(err).ShouldNot(HaveOccurred())
