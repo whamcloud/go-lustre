@@ -114,3 +114,38 @@ func MountRoot(path string) (RootDir, error) {
 	}
 	return RootDir(mnt), nil
 }
+
+// findRelPah returns pathname relative to root directory for the lustre filesystem containing
+// the pathname. If no Lustre root was found, then empty strings are returned.
+func findRelPath(dev uint64, pathname string, relPath []string) (string, string) {
+	parent := path.Dir(pathname)
+	fi, err := os.Lstat(parent)
+	if err != nil {
+		return "", ""
+	}
+	//  If "/" is lustre then we won't see the device change
+	if rootDevice(fi) != dev || pathname == "/" {
+		if isDotLustre(path.Join(pathname, ".lustre")) {
+			return pathname, path.Join(relPath...)
+		} else {
+			return "", ""
+		}
+	}
+
+	return findRelPath(dev, parent, append([]string{path.Base(pathname)}, relPath...))
+}
+
+// MountRelPath returns the lustre mountpoint, and remaing path for the given pathname. The remaining  paht
+// is relative to the mount point. Returns an error if pathname is not valid or does not refer to a Lustre fs.
+func MountRelPath(pathname string) (RootDir, string, error) {
+	fi, err := os.Lstat(pathname)
+	if err != nil {
+		return RootDir(""), "", err
+	}
+
+	root, relPath := findRelPath(rootDevice(fi), pathname, []string{})
+	if root == "" {
+		return RootDir(""), "", fmt.Errorf("%s not a Lustre filesystem", pathname)
+	}
+	return RootDir(root), relPath, nil
+}

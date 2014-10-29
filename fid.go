@@ -31,8 +31,8 @@ func (fid Fid) IsZero() bool {
 // LookupFid returns the Fid for the given file or an error.
 func LookupFid(path string) (*Fid, error) {
 	fid := Fid{}
-	_, err := C.llapi_path2fid(C.CString(path), (*C.lustre_fid)(&fid))
-	if err != nil {
+	rc, err := C.llapi_path2fid(C.CString(path), (*C.lustre_fid)(&fid))
+	if rc < 0 {
 		return nil, err
 	}
 	return &fid, nil
