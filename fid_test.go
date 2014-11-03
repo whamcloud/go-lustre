@@ -4,7 +4,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "hpdd/lustre"
-	. "hpdd/testlib"
+	"hpdd/test/harness"
 
 	"fmt"
 	"io/ioutil"
@@ -21,7 +21,7 @@ var _ = Describe("In the FID Utility Library", func() {
 		var err error
 
 		BeforeEach(func() {
-			mnt, err = MountRoot(ClientMount)
+			mnt, err = MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			testFile, err = ioutil.TempFile(string(mnt), "test")

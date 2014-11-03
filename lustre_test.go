@@ -4,7 +4,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "hpdd/lustre"
-	. "hpdd/testlib"
+	"hpdd/test/harness"
 	"os"
 	"path"
 )
@@ -13,7 +13,7 @@ var _ = Describe("In the Lustre API functions,", func() {
 	testFiles := []string{"test1", "test2", "test3"}
 	BeforeEach(func() {
 		for _, file := range testFiles {
-			f, err := os.Create(path.Join(ClientMount, file))
+			f, err := os.Create(path.Join(harness.ClientMount(), file))
 			if err != nil {
 				panic(err)
 			}
@@ -22,7 +22,7 @@ var _ = Describe("In the Lustre API functions,", func() {
 	})
 	AfterEach(func() {
 		for _, file := range testFiles {
-			if err := os.Remove(path.Join(ClientMount, file)); err != nil {
+			if err := os.Remove(path.Join(harness.ClientMount(), file)); err != nil {
 				panic(err)
 			}
 		}
@@ -36,7 +36,7 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountId()", func() {
 		It("should not return an error, given a valid mount.", func() {
-			id, err := MountId(ClientMount)
+			id, err := MountId(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(id).ToNot(Equal(""))
@@ -45,17 +45,17 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountRoot()", func() {
 		It("should not fail, given a valid path.", func() {
-			mnt, err := MountRoot(ClientMount)
+			mnt, err := MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(string(mnt)).To(Equal(ClientMount))
+			Expect(string(mnt)).To(Equal(harness.ClientMount()))
 		})
 
 		It("should not fail, given a valid file in lustre", func() {
-			mnt, err := MountRoot(path.Join(ClientMount, testFiles[0]))
+			mnt, err := MountRoot(path.Join(harness.ClientMount(), testFiles[0]))
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(string(mnt)).To(Equal(ClientMount))
+			Expect(string(mnt)).To(Equal(harness.ClientMount()))
 		})
 
 		It("should fail, given a non-Lustre path.", func() {
@@ -66,10 +66,10 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountRelPath()", func() {
 		It("should not fail, given a valid pathname.", func() {
-			mnt, relPath, err := MountRelPath(ClientMount)
+			mnt, relPath, err := MountRelPath(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(string(mnt)).To(Equal(ClientMount))
+			Expect(string(mnt)).To(Equal(harness.ClientMount()))
 			Expect(string(relPath)).To(Equal(""))
 		})
 
@@ -79,10 +79,10 @@ var _ = Describe("In the Lustre API functions,", func() {
 		})
 
 		It("should return mount and relative given pathname in lustre fs.", func() {
-			mnt, relPath, err := MountRelPath(path.Join(ClientMount, testFiles[0]))
+			mnt, relPath, err := MountRelPath(path.Join(harness.ClientMount(), testFiles[0]))
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(string(mnt)).To(Equal(ClientMount))
+			Expect(string(mnt)).To(Equal(harness.ClientMount()))
 			Expect(string(relPath)).To(Equal(testFiles[0]))
 		})
 	})
