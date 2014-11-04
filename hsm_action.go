@@ -7,8 +7,9 @@ package lustre
 import "C"
 
 import (
+	"errors"
 	"fmt"
-	"log"
+	"github.com/golang/glog"
 )
 
 type (
@@ -25,7 +26,19 @@ type (
 	}
 
 	ActionItemHandle ActionItem
+
+	ErrIOError struct {
+		msg string
+	}
 )
+
+func (e ErrIOError) Error() string {
+	return e.msg
+}
+
+func IoError(msg string) error {
+	return errors.New(msg)
+}
 
 // CoordinatorConnection opens a connection to the coordinator.
 func CoordinatorConnection(path RootDir) (*Coordinator, error) {
@@ -44,6 +57,10 @@ func (cdt *Coordinator) Recv() ([]ActionItem, error) {
 	var hal *C.struct_hsm_action_list
 	var hai *C.struct_hsm_action_item
 	var msgsize C.int
+
+	if cdt.hcp == nil {
+		return nil, errors.New("coordinator closed")
+	}
 
 	rc, err := C.llapi_hsm_copytool_recv(cdt.hcp, &hal, &msgsize)
 	if rc < 0 || err != nil {
@@ -67,8 +84,11 @@ func (cdt *Coordinator) Recv() ([]ActionItem, error) {
 
 // Close terminates connection with coordinator.
 func (cdt *Coordinator) Close() {
-	C.llapi_hsm_copytool_unregister(&cdt.hcp)
-	cdt.hcp = nil
+	if cdt.hcp != nil {
+		glog.Info("closing coordinator.")
+		C.llapi_hsm_copytool_unregister(&cdt.hcp)
+		cdt.hcp = nil
+	}
 }
 
 // Begin prepares an ActionItem for processing.
@@ -76,14 +96,22 @@ func (cdt *Coordinator) Close() {
 // returns an ActionItemHandle. The End method must be called to complete
 // this action.
 func (ai *ActionItem) Begin(mdtIndex int, openFlags int, isError bool) (*ActionItemHandle, error) {
-	rc, err := C.llapi_hsm_action_begin(&ai.hcap, ai.cdt.hcp, &ai.hai,
+	rc, err := C.llapi_hsm_action_begin(
+		&ai.hcap,
+		ai.cdt.hcp,
+		&ai.hai,
 		C.int(mdtIndex),
 		C.int(openFlags),
 		C.bool(isError))
-	if rc < 0 || err != nil {
-		return nil, err
+	if rc < 0 {
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, IoError("IO error")
+		}
+
 	}
-	return (*ActionItemHandle)(ai), err
+	return (*ActionItemHandle)(ai), nil
 }
 
 func (ai *ActionItem) String() string {
@@ -100,7 +128,7 @@ func (ai *ActionItem) ArchiveId() uint {
 func (ai *ActionItem) FailImmediately(errval int) {
 	aih, err := ai.Begin(0, 0, true)
 	if err != nil {
-		log.Println("begin failed: %s", ai.String())
+		glog.Errorf("begin failed: %s", ai.String())
 		return
 	}
 	aih.End(0, 0, 0, errval)
@@ -114,7 +142,7 @@ func lengthStr(length uint64) string {
 }
 
 func (ai *ActionItemHandle) String() string {
-	return fmt.Sprintf("AI: %v %v %d,%v", ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()))
+	return fmt.Sprintf("AI: %v %v %v %d,%v", ai.hai.hai_cookie, ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()))
 }
 
 // Progress reports current progress of an action.
