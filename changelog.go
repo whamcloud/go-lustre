@@ -18,13 +18,15 @@ import (
 )
 
 type (
+	// Changelog is a handle for an open changelog.
 	Changelog struct {
 		priv *byte
 	}
 
+	// ChangelogEntry is a change log entry. JobId is only avaiable if HasJob() is true.
+	// The Source* fields are only available if HasRename() is true.
 	ChangelogEntry struct {
 		Name            string
-		SourceName      string
 		Flags           uint
 		Index           int64
 		Prev            uint
@@ -33,21 +35,22 @@ type (
 		TypeName        string
 		TargetFid       Fid
 		ParentFid       Fid
+		SourceName      string
 		SourceFid       Fid
 		SourceParentFid Fid
-		JobId           string
+		JobID           string
 	}
 )
 
 // ChangelogOpen returns an object that can be used to read changelog entries.
 func ChangelogOpen(path string, follow bool, startRec int64) *Changelog {
-	clog := Changelog{}
+	cl := Changelog{}
 	var flags = C.CHANGELOG_FLAG_BLOCK | C.CHANGELOG_FLAG_JOBID
 	if follow {
 		flags |= C.CHANGELOG_FLAG_FOLLOW
 	}
 
-	rc, err := C.llapi_changelog_start((*unsafe.Pointer)(unsafe.Pointer(&clog.priv)),
+	rc, err := C.llapi_changelog_start((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)),
 		uint32(flags),
 		C.CString(path),
 		C.longlong(startRec))
@@ -55,37 +58,40 @@ func ChangelogOpen(path string, follow bool, startRec int64) *Changelog {
 		fmt.Printf("error %v, %v", rc, err)
 		return nil
 	}
-	return &clog
+	return &cl
 }
 
-func (chglog *Changelog) Close() {
-	_, err := C.llapi_changelog_fini((*unsafe.Pointer)(unsafe.Pointer(&chglog.priv)))
-	chglog.priv = nil
+// Close the changelog handle.
+func (cl *Changelog) Close() {
+	_, err := C.llapi_changelog_fini((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)))
+	cl.priv = nil
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func (entry *ChangelogEntry) HasJobExt() bool {
+// HasJob returns true if the entry has a JobID.
+func (entry *ChangelogEntry) HasJob() bool {
 	return entry.Flags&C.CLF_JOBID == C.CLF_JOBID
 }
 
-func (entry *ChangelogEntry) HasRenameExt() bool {
+// HasRename returns true if entry rename info
+func (entry *ChangelogEntry) HasRename() bool {
 	return entry.Flags&C.CLF_RENAME == C.CLF_RENAME
 }
 
 func (entry *ChangelogEntry) String() string {
 	var buffer bytes.Buffer
-	type_str := C.GoString(C.changelog_type2str(C.int(entry.Type)))
+	s := C.GoString(C.changelog_type2str(C.int(entry.Type)))
 
 	buffer.WriteString(fmt.Sprintf("%d ", entry.Index))
-	buffer.WriteString(fmt.Sprintf("%02d%s ", entry.Type, type_str))
+	buffer.WriteString(fmt.Sprintf("%02d%s ", entry.Type, s))
 	buffer.WriteString(fmt.Sprintf("%s ", entry.Time))
 	buffer.WriteString(fmt.Sprintf("%#x ", entry.Flags&C.CLF_FLAGMASK))
-	if entry.HasJobExt() && len(entry.JobId) > 0 {
-		buffer.WriteString(fmt.Sprintf("job=%s ", entry.JobId))
+	if entry.HasJob() && len(entry.JobID) > 0 {
+		buffer.WriteString(fmt.Sprintf("job=%s ", entry.JobID))
 	}
-	if entry.HasRenameExt() && !entry.SourceFid.IsZero() {
+	if entry.HasRename() && !entry.SourceFid.IsZero() {
 		buffer.WriteString(fmt.Sprintf("%v/%v", entry.SourceParentFid, entry.SourceFid))
 		if entry.SourceParentFid != entry.ParentFid {
 			buffer.WriteString(fmt.Sprintf("->%v/%v ", entry.ParentFid, entry.TargetFid))
@@ -95,7 +101,7 @@ func (entry *ChangelogEntry) String() string {
 	} else {
 		buffer.WriteString(fmt.Sprintf("%v/%v ", entry.ParentFid, entry.TargetFid))
 	}
-	if entry.HasRenameExt() && len(entry.SourceName) > 0 {
+	if entry.HasRename() && len(entry.SourceName) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s->", entry.SourceName))
 	}
 	if len(entry.Name) > 0 {
@@ -107,12 +113,10 @@ func (entry *ChangelogEntry) String() string {
 // GetNextLogEntry returns the next available log entry
 // in the Changelog. This may block, depending on flags
 // passed to ChangelogStart.
-func (clog *Changelog) GetNextLogEntry() *ChangelogEntry {
+func (cl *Changelog) GetNextLogEntry() *ChangelogEntry {
 	var rec *C.struct_changelog_rec
-	var rec_rename_ext *C.struct_changelog_ext_rename
-	var rec_jobid_ext *C.struct_changelog_ext_jobid
 
-	rc := C.llapi_changelog_recv((unsafe.Pointer(clog.priv)),
+	rc := C.llapi_changelog_recv((unsafe.Pointer(cl.priv)),
 		&rec)
 	if rc != 0 {
 		return nil
@@ -128,17 +132,17 @@ func (clog *Changelog) GetNextLogEntry() *ChangelogEntry {
 	entry.TargetFid = Fid(C.changelog_rec_tfid(rec))
 	entry.ParentFid = Fid(rec.cr_pfid)
 	entry.Name = C.GoString(C.changelog_rec_name(rec))
-	if entry.HasRenameExt() {
-		rec_rename_ext = C.changelog_rec_rename(rec)
-		if !Fid(rec_rename_ext.cr_sfid).IsZero() {
+	if entry.HasRename() {
+		rename := C.changelog_rec_rename(rec)
+		if !Fid(rename.cr_sfid).IsZero() {
 			entry.SourceName = C.GoString(C.changelog_rec_sname(rec))
-			entry.SourceFid = Fid(rec_rename_ext.cr_sfid)
-			entry.SourceParentFid = Fid(rec_rename_ext.cr_spfid)
+			entry.SourceFid = Fid(rename.cr_sfid)
+			entry.SourceParentFid = Fid(rename.cr_spfid)
 		}
 	}
-	if entry.HasJobExt() {
-		rec_jobid_ext = C.changelog_rec_jobid(rec)
-		entry.JobId = C.GoString(&rec_jobid_ext.cr_jobid[0])
+	if entry.HasJob() {
+		jobid := C.changelog_rec_jobid(rec)
+		entry.JobID = C.GoString(&jobid.cr_jobid[0])
 	}
 
 	C.llapi_changelog_free(&rec)
