@@ -92,6 +92,12 @@ func (fid Fid) Stat(mnt RootDir) (os.FileInfo, error) {
 	return os.Stat(fid.Path(mnt))
 }
 
+// Lstat by fid.
+// Returns readable file handle
+func (fid Fid) Lstat(mnt RootDir) (os.FileInfo, error) {
+	return os.Lstat(fid.Path(mnt))
+}
+
 // Pathname returns a path for a FID.
 //
 // If the fid is referred to by more than one file (i.e. hard links),

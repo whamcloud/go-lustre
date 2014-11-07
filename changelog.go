@@ -42,6 +42,31 @@ type (
 	}
 )
 
+// Changelog Types
+const (
+	CL_MARK     = 0
+	CL_CREATE   = 1  /* namespace */
+	CL_MKDIR    = 2  /* namespace */
+	CL_HARDLINK = 3  /* namespace */
+	CL_SOFTLINK = 4  /* namespace */
+	CL_MKNOD    = 5  /* namespace */
+	CL_UNLINK   = 6  /* namespace */
+	CL_RMDIR    = 7  /* namespace */
+	CL_RENAME   = 8  /* namespace */
+	CL_EXT      = 9  /* namespace extended record (2nd half of rename) */
+	CL_OPEN     = 10 /* not currently used */
+	CL_CLOSE    = 11 /* may be written to log only with mtime change */
+	CL_LAYOUT   = 12 /* file layout/striping modified */
+	CL_TRUNC    = 13
+	CL_SETATTR  = 14
+	CL_XATTR    = 15
+	CL_HSM      = 16 /* HSM specific events, see flags */
+	CL_MTIME    = 17 /* Precedence: setattr > mtime > ctime > atime */
+	CL_CTIME    = 18
+	CL_ATIME    = 19
+	CL_LAST
+)
+
 // ChangelogOpen returns an object that can be used to read changelog entries.
 func ChangelogOpen(path string, follow bool, startRec int64) *Changelog {
 	cl := Changelog{}
