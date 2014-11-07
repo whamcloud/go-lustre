@@ -29,26 +29,26 @@ func (fid Fid) IsZero() bool {
 }
 
 // LookupFid returns the Fid for the given file or an error.
-func LookupFid(path string) (*Fid, error) {
+func LookupFid(path string) (Fid, error) {
 	fid := Fid{}
 	rc, err := C.llapi_path2fid(C.CString(path), (*C.lustre_fid)(&fid))
 	if rc < 0 {
-		return nil, err
+		return Fid{}, err
 	}
-	return &fid, nil
+	return fid, nil
 }
 
 // ParseFid converts a fid in string format to a Fid
-func ParseFid(fidstr string) (*Fid, error) {
+func ParseFid(fidstr string) (Fid, error) {
 	fid := Fid{}
 	n, err := fmt.Sscanf(fidstr, "[0x%x:0x%x:0x%x]", &fid.f_seq, &fid.f_oid, &fid.f_ver)
 	if err != nil {
-		return nil, err
+		return Fid{}, err
 	}
 	if n != 3 {
-		return nil, fmt.Errorf("lustre: unable to parse fid string: %v", fidstr)
+		return Fid{}, fmt.Errorf("lustre: unable to parse fid string: %v", fidstr)
 	}
-	return &fid, nil
+	return fid, nil
 }
 
 // Pathnames returns all paths for a FID.

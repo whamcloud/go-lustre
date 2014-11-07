@@ -36,7 +36,7 @@ func Request(fs_root string, cmd uint, archiveId uint, fileList []string) (int, 
 		hui := (*C.struct_hsm_user_item)(unsafe.Pointer(huiPos))
 		hui.hui_extent.offset = 0
 		hui.hui_extent.length = C.__u64(^uint(0))
-		hui.hui_fid = C.lustre_fid(*fid)
+		hui.hui_fid = C.lustre_fid(fid)
 		hur.hur_request.hr_itemcount++
 	}
 	num := int(hur.hur_request.hr_itemcount)

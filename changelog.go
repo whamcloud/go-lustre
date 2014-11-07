@@ -75,11 +75,11 @@ const (
 
 	// Flags for unlink
 	CLF_UNLINK_LAST       = C.CLF_UNLINK_LAST       // Unlink of last hardlink
-	CLF_UNLINK_HSM_EXISTS = C.CLF_UNLINK_HSM_EXISTS // File has something in HSM, cleaning needed
+	CLF_UNLINK_HSM_EXISTS = C.CLF_UNLINK_HSM_EXISTS // Unlink of last link, HSM archive may exist
 
 	/* Flags for rename */
 	CLF_RENAME_LAST        = C.CLF_RENAME_LAST        // rename unlink last hardlink of target
-	CLF_RENAME_LAST_EXISTS = C.CLF_RENAME_LAST_EXISTS // rename unlink last hardlink of target, HSM cleaning needed
+	CLF_RENAME_LAST_EXISTS = C.CLF_RENAME_LAST_EXISTS // rename unlink last hardlink of target, HSM archive may exist
 
 )
 
