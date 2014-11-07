@@ -17,11 +17,9 @@ var _ = Describe("In the FID Utility Library", func() {
 	Describe("lookup functions,", func() {
 		var testFile *os.File
 		var mnt RootDir
-		var fid *Fid
-		var err error
 
 		BeforeEach(func() {
-			mnt, err = MountRoot(harness.ClientMount())
+			mnt, err := MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			testFile, err = ioutil.TempFile(string(mnt), "test")
@@ -34,9 +32,9 @@ var _ = Describe("In the FID Utility Library", func() {
 
 		Describe("LookupFid()", func() {
 			It("should return a valid FID, given a valid path.", func() {
-				fid, err = LookupFid(testFile.Name())
+				fid, err := LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
-				Expect(reflect.TypeOf(fid).String()).To(Equal("*lustre.Fid"))
+				Expect(reflect.TypeOf(fid).String()).To(Equal("lustre.Fid"))
 			})
 
 			It("should return an error, given an invalid path.", func() {
@@ -47,7 +45,7 @@ var _ = Describe("In the FID Utility Library", func() {
 
 		Describe("FidPathname()", func() {
 			It("should return a file path, given a valid fid.", func() {
-				fid, err = LookupFid(testFile.Name())
+				fid, err := LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
 				name, err := FidPathname(mnt, fid.String(), 0)
@@ -59,7 +57,7 @@ var _ = Describe("In the FID Utility Library", func() {
 
 		Describe("FidPathnames()", func() {
 			It("should return an array of paths, given a valid fid.", func() {
-				fid, err = LookupFid(testFile.Name())
+				fid, err := LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
 				names, err := FidPathnames(mnt, fid.String())
