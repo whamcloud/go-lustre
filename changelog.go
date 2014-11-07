@@ -67,6 +67,22 @@ const (
 	CL_LAST
 )
 
+// Changelog Flags
+const (
+	/* Anything under the flagmask may be per-type (if desired) */
+
+	CLF_FLAGMASK = C.CLF_FLAGMASK
+
+	// Flags for unlink
+	CLF_UNLINK_LAST       = C.CLF_UNLINK_LAST       // Unlink of last hardlink
+	CLF_UNLINK_HSM_EXISTS = C.CLF_UNLINK_HSM_EXISTS // File has something in HSM, cleaning needed
+
+	/* Flags for rename */
+	CLF_RENAME_LAST        = C.CLF_RENAME_LAST        // rename unlink last hardlink of target
+	CLF_RENAME_LAST_EXISTS = C.CLF_RENAME_LAST_EXISTS // rename unlink last hardlink of target, HSM cleaning needed
+
+)
+
 // ChangelogOpen returns an object that can be used to read changelog entries.
 func ChangelogOpen(path string, follow bool, startRec int64) *Changelog {
 	cl := Changelog{}
