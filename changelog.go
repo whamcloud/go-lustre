@@ -13,6 +13,7 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -83,6 +84,43 @@ const (
 
 )
 
+type HsmEvent int32
+
+// HSM Event Types
+const (
+	HE_ARCHIVE HsmEvent = C.HE_ARCHIVE
+	HE_RESTORE HsmEvent = C.HE_RESTORE
+	HE_CANCEL  HsmEvent = C.HE_CANCEL
+	HE_RELEASE HsmEvent = C.HE_RELEASE
+	HE_REMOVE  HsmEvent = C.HE_REMOVE
+	HE_STATE   HsmEvent = C.HE_STATE
+	HE_SPARE1  HsmEvent = C.HE_SPARE1
+	HE_SPARE2  HsmEvent = C.HE_SPARE2
+)
+
+func (he *HsmEvent) String() string {
+	switch *he {
+	case HE_ARCHIVE:
+		return "Archive"
+	case HE_RESTORE:
+		return "Restore"
+	case HE_CANCEL:
+		return "Cancel"
+	case HE_RELEASE:
+		return "Release"
+	case HE_REMOVE:
+		return "Remove"
+	case HE_STATE:
+		return "Changed State"
+	case HE_SPARE1:
+		return "Spare1"
+	case HE_SPARE2:
+		return "Spare2"
+	default:
+		panic(fmt.Sprintf("Unknown HsmEvent: %d", he))
+	}
+}
+
 // ChangelogOpen returns an object that can be used to read changelog entries.
 func ChangelogOpen(path string, follow bool, startRec int64) *Changelog {
 	cl := Changelog{}
@@ -111,6 +149,37 @@ func (cl *Changelog) Close() {
 	}
 }
 
+func (entry *ChangelogEntry) FlagStrings() []string {
+	flagStrings := make([]string, 0)
+
+	switch entry.Type {
+	case C.CL_HSM:
+		event := HsmEvent(C.hsm_get_cl_event(C.__u16(entry.Flags)))
+		flagStrings = append(flagStrings, event.String())
+		hsmFlags := C.hsm_get_cl_flags(C.int(entry.Flags))
+		switch hsmFlags {
+		case C.CLF_HSM_DIRTY:
+			flagStrings = append(flagStrings, "Dirty")
+		}
+	case C.CL_UNLINK:
+		if entry.Flags&C.CLF_UNLINK_LAST > 0 {
+			flagStrings = append(flagStrings, "Last Hardlink")
+		}
+		if entry.Flags&C.CLF_UNLINK_HSM_EXISTS > 0 {
+			flagStrings = append(flagStrings, "HSM Cruft")
+		}
+	case C.CL_RENAME:
+		if entry.Flags&C.CLF_RENAME_LAST > 0 {
+			flagStrings = append(flagStrings, "Last Hardlink")
+		}
+		if entry.Flags&C.CLF_RENAME_LAST_EXISTS > 0 {
+			flagStrings = append(flagStrings, "HSM Cruft")
+		}
+	}
+
+	return flagStrings
+}
+
 // HasJob returns true if the entry has a JobID.
 func (entry *ChangelogEntry) HasJob() bool {
 	return entry.Flags&C.CLF_JOBID == C.CLF_JOBID
@@ -129,6 +198,7 @@ func (entry *ChangelogEntry) String() string {
 	buffer.WriteString(fmt.Sprintf("%02d%s ", entry.Type, s))
 	buffer.WriteString(fmt.Sprintf("%s ", entry.Time))
 	buffer.WriteString(fmt.Sprintf("%#x ", entry.Flags&C.CLF_FLAGMASK))
+	buffer.WriteString(fmt.Sprintf("%s ", strings.Join(entry.FlagStrings(), ",")))
 	if entry.HasJob() && len(entry.JobID) > 0 {
 		buffer.WriteString(fmt.Sprintf("job=%s ", entry.JobID))
 	}
