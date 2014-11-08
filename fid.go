@@ -41,9 +41,11 @@ func LookupFid(path string) (Fid, error) {
 // ParseFid converts a fid in string format to a Fid
 func ParseFid(fidstr string) (Fid, error) {
 	fid := Fid{}
-	n, err := fmt.Sscanf(fidstr, "[0x%x:0x%x:0x%x]", &fid.f_seq, &fid.f_oid, &fid.f_ver)
+	if fidstr[0] == '[' {
+		fidstr = fidstr[1 : len(fidstr)-1]
+	}
+	n, err := fmt.Sscanf(fidstr, "0x%x:0x%x:0x%x", &fid.f_seq, &fid.f_oid, &fid.f_ver)
 	if err != nil {
-		return Fid{}, err
 	}
 	if n != 3 {
 		return Fid{}, fmt.Errorf("lustre: unable to parse fid string: %v", fidstr)

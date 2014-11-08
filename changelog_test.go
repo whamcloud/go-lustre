@@ -26,7 +26,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 		Ω(changelog).ShouldNot(BeNil())
 	})
 	AfterEach(func() {
-		err := harness.ClearChangelogs(changelogUser, changelogMdt)
+		err := lustre.ChangelogClear(changelogMdt, changelogUser, 0)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		err = harness.DeregisterChangelogUser(changelogUser, changelogMdt)
@@ -77,8 +77,8 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			log.Debug("Renamed %s -> %s", oldFile, testFile)
 
-			var entry *lustre.ChangelogEntry = nil
-			nextIndex := int64(0)
+			var entry *lustre.ChangelogEntry
+			var nextIndex int64
 			getRename := func() *lustre.ChangelogEntry {
 				changelog = lustre.ChangelogOpen(harness.ClientMount(), false, nextIndex)
 				Ω(changelog).ShouldNot(BeNil())
@@ -89,7 +89,6 @@ var _ = Describe("When Changelogs are enabled", func() {
 					nextIndex = entry.Index + 1
 				}
 				changelog.Close()
-
 				return nil
 			}
 
