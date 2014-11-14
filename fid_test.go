@@ -1,10 +1,11 @@
 package lustre_test
 
 import (
+	"hpdd/lustre"
+	"hpdd/test/harness"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "hpdd/lustre"
-	"hpdd/test/harness"
 
 	"fmt"
 	"io/ioutil"
@@ -16,10 +17,10 @@ import (
 var _ = Describe("In the FID Utility Library", func() {
 	Describe("lookup functions,", func() {
 		var testFile *os.File
-		var mnt RootDir
+		var mnt lustre.RootDir
 
 		BeforeEach(func() {
-			mnt, err := MountRoot(harness.ClientMount())
+			mnt, err := lustre.MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			testFile, err = ioutil.TempFile(string(mnt), "test")
@@ -32,23 +33,23 @@ var _ = Describe("In the FID Utility Library", func() {
 
 		Describe("LookupFid()", func() {
 			It("should return a valid FID, given a valid path.", func() {
-				fid, err := LookupFid(testFile.Name())
+				fid, err := lustre.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 				Expect(reflect.TypeOf(fid).String()).To(Equal("lustre.Fid"))
 			})
 
 			It("should return an error, given an invalid path.", func() {
-				_, err := LookupFid("/foo/bar/baz")
+				_, err := lustre.LookupFid("/foo/bar/baz")
 				Ω(err).Should(HaveOccurred())
 			})
 		})
 
 		Describe("FidPathname()", func() {
 			It("should return a file path, given a valid fid.", func() {
-				fid, err := LookupFid(testFile.Name())
+				fid, err := lustre.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
-				name, err := FidPathname(mnt, fid.String(), 0)
+				name, err := lustre.FidPathname(mnt, fid.String(), 0)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Expect(name).To(Equal(path.Base(testFile.Name())))
@@ -57,10 +58,10 @@ var _ = Describe("In the FID Utility Library", func() {
 
 		Describe("FidPathnames()", func() {
 			It("should return an array of paths, given a valid fid.", func() {
-				fid, err := LookupFid(testFile.Name())
+				fid, err := lustre.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
-				names, err := FidPathnames(mnt, fid.String())
+				names, err := lustre.FidPathnames(mnt, fid.String())
 				Ω(err).ShouldNot(HaveOccurred())
 				Expect(names[0]).To(Equal(path.Base(testFile.Name())))
 			})
@@ -74,7 +75,7 @@ var _ = Describe("In the FID Utility Library", func() {
 				oid := 0x456
 				ver := 0
 				str := fmt.Sprintf("[%#x:%#x:%#x]", seq, oid, ver)
-				fid, err := ParseFid(str)
+				fid, err := lustre.ParseFid(str)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				// Can't access these fields because they're
@@ -86,14 +87,14 @@ var _ = Describe("In the FID Utility Library", func() {
 			})
 
 			It("should correctly parse the zero FID.", func() {
-				fid, err := ParseFid("[0x0:0x0:0x0]")
+				fid, err := lustre.ParseFid("[0x0:0x0:0x0]")
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Expect(fid.IsZero()).To(BeTrue())
 			})
 
 			It("should return an error, given a bad FID string.", func() {
-				_, err := ParseFid("[0x123:0x456:bad]")
+				_, err := lustre.ParseFid("[0x123:0x456:bad]")
 				Ω(err).Should(HaveOccurred())
 			})
 		})
