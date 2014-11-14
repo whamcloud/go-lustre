@@ -101,6 +101,15 @@ func (fid Fid) Lstat(mnt RootDir) (os.FileInfo, error) {
 	return os.Lstat(fid.Path(mnt))
 }
 
+func (fid Fid) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + fid.String() + `"`), nil
+}
+
+func (fid Fid) UnMarshalJSON(b []byte) (err error) {
+	fid, err = ParseFid(string(b))
+	return err
+}
+
 // Pathname returns a path for a FID.
 //
 // If the fid is referred to by more than one file (i.e. hard links),
