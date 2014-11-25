@@ -54,6 +54,46 @@ func MountId(mountPath string) (*status.LustreClient, error) {
 	return &c, nil
 }
 
+// Given a mountpoint, return the filesystem's name.
+func FilesystemName(mountPath string) (string, error) {
+	var buffer [2048]C.char
+	rc, err := C.llapi_search_fsname(C.CString(mountPath), &buffer[0])
+	if rc < 0 || err != nil {
+		return "", fmt.Errorf("lustre:  %v %d %v", mountPath, rc, err)
+	}
+	return C.GoString(&buffer[0]), nil
+}
+
+// Given a filesystem name, find the local mountpoint.
+func FilesystemName2Mount(fsName string) (RootDir, error) {
+	var buffer [C.PATH_MAX]C.char
+	rc, err := C.llapi_search_rootpath(&buffer[0], C.CString(fsName))
+	if rc < 0 || err != nil {
+		return RootDir(""), fmt.Errorf("lustre:  %v %d %v", fsName, rc, err)
+	}
+	return RootDir(C.GoString(&buffer[0])), nil
+}
+
+// Get the filesystem's ID. For the moment, this is the FS name, but in
+// the future it could be something more globally unique (uuid?).
+func FilesystemId(mountPath string) (string, error) {
+	id, err := FilesystemName(mountPath)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// Given a filesystem id (as returned by FilesystemId), find the local
+// mountpoint.
+func FilesystemId2Mount(fsId string) (RootDir, error) {
+	mnt, err := FilesystemName2Mount(fsId)
+	if err != nil {
+		return mnt, err
+	}
+	return mnt, nil
+}
+
 type RootDir string
 
 // Join args with root dir to create an absolute path.
