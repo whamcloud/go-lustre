@@ -11,9 +11,11 @@ import "C"
 
 import (
 	"fmt"
+	"hpdd/lustre/status"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -40,13 +42,16 @@ func Version() string {
 // MountId returns the local Lustre client indentifier for that mountpoint. This can
 // be used to determine which entries in /proc/fs/lustre as associated with
 // that client.
-func MountId(mountPath string) (string, error) {
+func MountId(mountPath string) (*status.LustreClient, error) {
 	var buffer [2048]C.char
 	rc, err := C.llapi_getname(C.CString(mountPath), &buffer[0], C.size_t(len(buffer)))
 	if rc < 0 || err != nil {
-		return "", fmt.Errorf("lustre:  %v %d %v", mountPath, rc, err)
+		return nil, fmt.Errorf("lustre:  %v %d %v", mountPath, rc, err)
 	}
-	return C.GoString(&buffer[0]), nil
+	id := C.GoString(&buffer[0])
+	elem := strings.Split(id, "-")
+	c := status.LustreClient{elem[0], elem[1]}
+	return &c, nil
 }
 
 type RootDir string
