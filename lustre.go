@@ -102,6 +102,11 @@ func (root RootDir) Join(args ...string) string {
 	return path.Join(string(root), path.Join(args...))
 }
 
+// Just converts it into a regular string.
+func (root RootDir) String() string {
+	return string(root)
+}
+
 // Determine if given directory is the one true magical DOT_LUSTRE directory.
 func isDotLustre(dir string) bool {
 	fi, err := os.Lstat(dir)
