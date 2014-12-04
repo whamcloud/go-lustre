@@ -37,10 +37,11 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountId()", func() {
 		It("should not return an error, given a valid mount.", func() {
-			id, err := lustre.MountId(harness.ClientMount())
+			id, err := lustre.MountID(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(id.FsID).ToNot(Equal(""))
+			Expect(id.FsName).ToNot(Equal(""))
+			Expect(id.ClientID).ToNot(Equal(""))
 		})
 	})
 
@@ -88,39 +89,12 @@ var _ = Describe("In the Lustre API functions,", func() {
 		})
 	})
 
-	Describe("FilesystemName()", func() {
-		It("should return the fs name, given a valid mount.", func() {
-			name, err := lustre.FilesystemName(harness.ClientMount())
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Expect(name).To(Equal(harness.FsName()))
-		})
-	})
-
-	Describe("FilesystemName2Mount()", func() {
-		It("should return a mountpoint, given a valid fs name.", func() {
-			mnt, err := lustre.FilesystemName2Mount(harness.FsName())
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Expect(string(mnt)).To(Equal(harness.ClientMount()))
-		})
-	})
-
-	Describe("FilesystemId()", func() {
+	Describe("GetID()", func() {
 		It("should return the fs ID, given a valid mount.", func() {
-			id, err := lustre.FilesystemId(harness.ClientMount())
+			id, err := lustre.GetID(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(id).To(Equal(harness.FsId()))
-		})
-	})
-
-	Describe("FilesystemId2Mount()", func() {
-		It("should return a mountpoint, given a valid fs id.", func() {
-			mnt, err := lustre.FilesystemId2Mount(harness.FsId())
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Expect(string(mnt)).To(Equal(harness.ClientMount()))
+			Expect(id).To(Equal(harness.FsID()))
 		})
 	})
 

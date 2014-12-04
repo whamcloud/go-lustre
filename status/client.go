@@ -15,17 +15,17 @@ const (
 
 // LustreClient is a local client
 type LustreClient struct {
-	FsName string
-	FsID   string
+	FsName   string
+	ClientID string
 }
 
 func (c *LustreClient) String() string {
-	return c.FsName + "-" + c.FsID
+	return c.FsName + "-" + c.ClientID
 }
 
 func (c *LustreClient) getClientDevices(module string, cli string) []string {
 	var ret []string
-	nameGlob := fmt.Sprintf("%s*-%s-%s", c.FsName, cli, c.FsID)
+	nameGlob := fmt.Sprintf("%s*-%s-%s", c.FsName, cli, c.ClientID)
 	p := filepath.Join(procBase, module, nameGlob)
 	matches, _ := filepath.Glob(p)
 	for _, c := range matches {
@@ -35,7 +35,7 @@ func (c *LustreClient) getClientDevices(module string, cli string) []string {
 }
 
 func (c *LustreClient) ClientPath(module string, cli string) string {
-	name := fmt.Sprintf("%s-%s-%s", cli, module, c.FsID)
+	name := fmt.Sprintf("%s-%s-%s", cli, module, c.ClientID)
 	p := filepath.Join(procBase, module, name)
 	return p
 }

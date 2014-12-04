@@ -15,33 +15,33 @@ import (
 	"unsafe"
 )
 
-func RequestHsmArchive(fsId string, archiveId uint, fileList []string) error {
-	return hsmRequest(fsId, C.HUA_ARCHIVE, archiveId, fileList)
+func RequestHsmArchive(fsID FilesystemID, archiveId uint, fileList []string) error {
+	return hsmRequest(fsID, C.HUA_ARCHIVE, archiveId, fileList)
 }
 
-func RequestHsmRestore(fsId string, archiveId uint, fileList []string) error {
-	return hsmRequest(fsId, C.HUA_RESTORE, archiveId, fileList)
+func RequestHsmRestore(fsID FilesystemID, archiveId uint, fileList []string) error {
+	return hsmRequest(fsID, C.HUA_RESTORE, archiveId, fileList)
 }
 
-func RequestHsmRelease(fsId string, archiveId uint, fileList []string) error {
-	return hsmRequest(fsId, C.HUA_RELEASE, archiveId, fileList)
+func RequestHsmRelease(fsID FilesystemID, archiveId uint, fileList []string) error {
+	return hsmRequest(fsID, C.HUA_RELEASE, archiveId, fileList)
 }
 
-func RequestHsmRemove(fsId string, archiveId uint, fileList []string) error {
-	return hsmRequest(fsId, C.HUA_REMOVE, archiveId, fileList)
+func RequestHsmRemove(fsID FilesystemID, archiveId uint, fileList []string) error {
+	return hsmRequest(fsID, C.HUA_REMOVE, archiveId, fileList)
 }
 
-func RequestHsmCancel(fsId string, archiveId uint, fileList []string) error {
-	return hsmRequest(fsId, C.HUA_CANCEL, archiveId, fileList)
+func RequestHsmCancel(fsID FilesystemID, archiveId uint, fileList []string) error {
+	return hsmRequest(fsID, C.HUA_CANCEL, archiveId, fileList)
 }
 
-func hsmRequest(fsId string, cmd uint, archiveId uint, fileList []string) error {
-	mnt, err := FilesystemId2Mount(fsId)
+func hsmRequest(fsID FilesystemID, cmd uint, archiveId uint, fileList []string) error {
+	mnt, err := fsID.Path()
 	if err != nil {
 		return err
 	}
 
-	if _, err = Request(mnt.String(), cmd, archiveId, fileList); err != nil {
+	if _, err = Request(mnt, cmd, archiveId, fileList); err != nil {
 		return err
 	}
 	return nil
