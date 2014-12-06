@@ -17,6 +17,7 @@ var (
 	_DOT_LUSTRE_FID = Fid{0x200000002, 0x1, 0x0}
 )
 
+// Fid is a Lustre file identifier.
 type Fid C.lustre_fid
 
 func (fid Fid) String() string {
@@ -24,6 +25,7 @@ func (fid Fid) String() string {
 		fid.f_seq, fid.f_oid, fid.f_ver)
 }
 
+// IsZero is true of Fid is 0.
 func (fid Fid) IsZero() bool {
 	return fid.f_seq == 0 && fid.f_oid == 0 && fid.f_ver == 0
 }
@@ -63,7 +65,7 @@ func (fid Fid) Pathnames(mnt RootDir) ([]string, error) {
 	return FidPathnames(mnt, fid.String())
 }
 
-// Pathnames returns all paths for a FID.
+// AbsPathnames returns all paths for a FID.
 //
 // This returns a slice containing all names that reference
 // the FID.
@@ -83,7 +85,7 @@ func (fid Fid) Open(mnt RootDir) (*os.File, error) {
 	return os.Open(fid.Path(mnt))
 }
 
-// Open by fid.
+// OpenFile by fid.
 // Returns readable file handle
 func (fid Fid) OpenFile(mnt RootDir, flags int, perm os.FileMode) (*os.File, error) {
 	return os.OpenFile(fid.Path(mnt), flags, perm)
@@ -101,24 +103,27 @@ func (fid Fid) Lstat(mnt RootDir) (os.FileInfo, error) {
 	return os.Lstat(fid.Path(mnt))
 }
 
+// MarshalJSON converts a Fid to a string for JSON.
 func (fid Fid) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + fid.String() + `"`), nil
 }
 
+// UnMarshalJSON converts fid string to Fid.
 func (fid Fid) UnMarshalJSON(b []byte) (err error) {
 	fid, err = ParseFid(string(b))
 	return err
 }
 
-// Pathname returns a path for a FID.
+// FidPathname returns a path for a FID.
 //
+// Paths are relative from the RootDir of the filesystem.
 // If the fid is referred to by more than one file (i.e. hard links),
 // the the LINKNO specifies a specific link to return. This does
 // not update linkno on return. Use Paths to retrieve all hard link
 // names.
 //
 func FidPathname(mnt RootDir, fidstr string, linkno int) (string, error) {
-	var recno int64 = 0
+	var recno int64
 	return fid2path(string(mnt), fidstr, &recno, &linkno)
 }
 
@@ -128,12 +133,12 @@ func FidPath(mnt RootDir, fidstr string) string {
 }
 
 func fidPathnames(mnt RootDir, fidstr string, absPath bool) ([]string, error) {
-	var recno int64 = 0
-	var linkno int = 0
-	var prev_linkno int = -1
+	var recno int64
+	var linkno int
+	var prevLinkno = -1
 	var paths = make([]string, 0)
-	for prev_linkno < linkno {
-		prev_linkno = linkno
+	for prevLinkno < linkno {
+		prevLinkno = linkno
 		p, err := fid2path(string(mnt), fidstr, &recno, &linkno)
 		if err != nil {
 			return paths, err

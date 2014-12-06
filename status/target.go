@@ -1,4 +1,4 @@
-package lustre
+package status
 
 //
 // #cgo LDFLAGS: -llustreapi
@@ -14,13 +14,14 @@ import (
 )
 
 type (
+	// TargetIndex is the name of a target and its index.
 	TargetIndex struct {
 		Index int
 		Name  string
 	}
 )
 
-// Return the uniqe name for the LOV devcie for the client associated with the path.
+// LovName returns the uniqe name for the LOV devcie for the client associated with the path.
 func LovName(p string) (string, error) {
 	var obd C.struct_obd_uuid
 	rc, err := C.llapi_file_get_lov_uuid(C.CString(p), &obd)
@@ -31,7 +32,7 @@ func LovName(p string) (string, error) {
 	return s, nil
 }
 
-// Return the uniqe name for the LMV device for the client associated with the path.
+// LmvName returns the uniqe name for the LMV device for the client associated with the path.
 func LmvName(p string) (string, error) {
 	var obd C.struct_obd_uuid
 	rc, err := C.llapi_file_get_lmv_uuid(C.CString(p), &obd)
@@ -53,7 +54,7 @@ func LovTargets(p string) (result []TargetIndex, err error) {
 	return getTargetIndex("lov", lov)
 }
 
-// LovTargets returns uuids and indices of the targts in an LOV.
+// LmvTargets returns uuids and indices of the targts in an LmV.
 // Path refers to a file or directory in a Lustre filesystem.
 func LmvTargets(p string) (result []TargetIndex, err error) {
 	lmv, err := LmvName(p)
@@ -65,7 +66,7 @@ func LmvTargets(p string) (result []TargetIndex, err error) {
 }
 
 func getTargetIndex(targetType, targetName string) (result []TargetIndex, err error) {
-	name := path.Join(PROC_DIR, targetType, targetName, "target_obd")
+	name := path.Join(procBase, targetType, targetName, "target_obd")
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err

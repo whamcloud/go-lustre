@@ -1,12 +1,13 @@
 package lustre_test
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"hpdd/lustre"
 	"hpdd/test/harness"
 	"hpdd/test/log"
 	"hpdd/test/utils"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 
 	"os"
 	"strings"

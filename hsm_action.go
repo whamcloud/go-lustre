@@ -9,24 +9,29 @@ import "C"
 import (
 	"errors"
 	"fmt"
+
 	"github.com/golang/glog"
 )
 
 type (
+	// Coordinator receives HSM actions to execute.
 	Coordinator struct {
 		hcp *C.struct_hsm_copytool_private
 	}
 
+	// ActionItem is one action to perform on specified file.
 	ActionItem struct {
 		cdt       *Coordinator
 		hai       C.struct_hsm_action_item
 		hcap      *C.struct_hsm_copyaction_private
 		halFlags  uint64
-		archiveId uint
+		archiveID uint
 	}
 
+	// ActionItemHandle is an "open" actionItem that is currrently being processed.
 	ActionItemHandle ActionItem
 
+	// ErrIOError are errors that returned by the HSM library.
 	ErrIOError struct {
 		msg string
 	}
@@ -36,6 +41,7 @@ func (e ErrIOError) Error() string {
 	return e.msg
 }
 
+// IoError returns a new error.
 func IoError(msg string) error {
 	return errors.New(msg)
 }
@@ -72,7 +78,7 @@ func (cdt *Coordinator) Recv() ([]ActionItem, error) {
 	for i := 0; i < int(hal.hal_count); i++ {
 		item := ActionItem{
 			halFlags:  uint64(hal.hal_flags),
-			archiveId: uint(hal.hal_archive_id),
+			archiveID: uint(hal.hal_archive_id),
 			cdt:       cdt,
 			hai:       *hai,
 		}
@@ -106,9 +112,8 @@ func (ai *ActionItem) Begin(mdtIndex int, openFlags int, isError bool) (*ActionI
 	if rc < 0 {
 		if err != nil {
 			return nil, err
-		} else {
-			return nil, IoError("IO error")
 		}
+		return nil, IoError("IO error")
 
 	}
 	return (*ActionItemHandle)(ai), nil
@@ -120,7 +125,7 @@ func (ai *ActionItem) String() string {
 
 // ArchiveId returns the archive id associated with teh ActionItem.
 func (ai *ActionItem) ArchiveId() uint {
-	return ai.archiveId
+	return ai.archiveID
 }
 
 // FailImmediately completes the ActinoItem with given error.
@@ -166,8 +171,10 @@ func (ai *ActionItemHandle) End(offset uint64, length uint64, flags int, errval 
 	return nil
 }
 
+// HsmAction indentifies which action to perform.
 type HsmAction uint32
 
+// HSM Action constants
 const (
 	NONE    = HsmAction(C.HSMA_NONE)
 	ARCHIVE = HsmAction(C.HSMA_ARCHIVE)
@@ -236,9 +243,9 @@ func (ai *ActionItemHandle) Length() uint64 {
 	return uint64(ai.hai.hai_extent.length)
 }
 
-// ArchiveId returns archive for this action.
+// ArchiveID returns archive for this action.
 // Duplicating this on the action allows actions to be
 // self-contained.
-func (ai *ActionItemHandle) ArchiveId() uint {
-	return ai.archiveId
+func (ai *ActionItemHandle) ArchiveID() uint {
+	return ai.archiveID
 }

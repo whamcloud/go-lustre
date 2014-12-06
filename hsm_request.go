@@ -41,7 +41,7 @@ func hsmRequest(fsID FilesystemID, cmd uint, archiveId uint, fileList []string) 
 		return err
 	}
 
-	if _, err = Request(mnt, cmd, archiveId, fileList); err != nil {
+	if _, err = request(mnt, cmd, archiveId, fileList); err != nil {
 		return err
 	}
 	return nil
@@ -49,13 +49,13 @@ func hsmRequest(fsID FilesystemID, cmd uint, archiveId uint, fileList []string) 
 
 // Request submits an HSM request for list of files
 // The max suported size of the fileList is about 50.
-func Request(fs_root string, cmd uint, archiveId uint, inList []string) (int, error) {
+func request(r string, cmd uint, archiveID uint, inList []string) (int, error) {
 	// Make a copy so that we don't modify the supplied list.
 	fileList := make([]string, len(inList))
 	copy(fileList, inList)
 	for idx, filePath := range fileList {
-		if !strings.HasPrefix(filePath, fs_root) {
-			fileList[idx] = path.Join(fs_root, filePath)
+		if !strings.HasPrefix(filePath, r) {
+			fileList[idx] = path.Join(r, filePath)
 		}
 	}
 
@@ -71,7 +71,7 @@ func Request(fs_root string, cmd uint, archiveId uint, inList []string) (int, er
 	}
 
 	hur.hur_request.hr_action = C.__u32(cmd)
-	hur.hur_request.hr_archive_id = C.__u32(archiveId)
+	hur.hur_request.hr_archive_id = C.__u32(archiveID)
 	hur.hur_request.hr_flags = 0
 	hur.hur_request.hr_itemcount = 0
 	hur.hur_request.hr_data_len = 0

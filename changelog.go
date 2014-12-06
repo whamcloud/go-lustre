@@ -70,15 +70,14 @@ const (
 
 // Changelog Flags
 const (
-	/* Anything under the flagmask may be per-type (if desired) */
-
+	// Anything under the flagmask may be per-type (if desired)
 	CLF_FLAGMASK = C.CLF_FLAGMASK
 
 	// Flags for unlink
 	CLF_UNLINK_LAST       = C.CLF_UNLINK_LAST       // Unlink of last hardlink
 	CLF_UNLINK_HSM_EXISTS = C.CLF_UNLINK_HSM_EXISTS // Unlink of last link, HSM archive may exist
 
-	/* Flags for rename */
+	// Flags for rename
 	CLF_RENAME_LAST        = C.CLF_RENAME_LAST        // rename unlink last hardlink of target
 	CLF_RENAME_LAST_EXISTS = C.CLF_RENAME_LAST_EXISTS // rename unlink last hardlink of target, HSM archive may exist
 
@@ -149,8 +148,9 @@ func (cl *Changelog) Close() {
 	}
 }
 
+// FlagStrings convers the log entry flogs into human readable format.
 func (entry *ChangelogEntry) FlagStrings() []string {
-	flagStrings := make([]string, 0)
+	var flagStrings []string
 
 	switch entry.Type {
 	case C.CL_HSM:

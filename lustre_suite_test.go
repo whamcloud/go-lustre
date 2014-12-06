@@ -1,11 +1,12 @@
 package lustre_test
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"hpdd/test/harness"
 	"hpdd/test/log"
 	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func TestLustre(t *testing.T) {

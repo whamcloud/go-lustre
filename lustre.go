@@ -19,10 +19,6 @@ import (
 	"syscall"
 )
 
-const (
-	PROC_DIR = "/proc/fs/lustre"
-)
-
 // Version returns the current Lustre version string.
 func Version() string {
 	var buffer [4096]C.char
@@ -54,6 +50,7 @@ func MountID(mountPath string) (*status.LustreClient, error) {
 	return &c, nil
 }
 
+// RootDir represent a the mount point of a Lustre filesystem.
 type RootDir string
 
 // Join args with root dir to create an absolute path.
@@ -129,9 +126,8 @@ func findRoot(dev uint64, pathname string) string {
 	if rootDevice(fi) != dev || pathname == "/" {
 		if isDotLustre(path.Join(pathname, ".lustre")) {
 			return pathname
-		} else {
-			return ""
 		}
+		return ""
 	}
 
 	return findRoot(dev, parent)
@@ -164,9 +160,8 @@ func findRelPath(dev uint64, pathname string, relPath []string) (string, string)
 	if rootDevice(fi) != dev || pathname == "/" {
 		if isDotLustre(path.Join(pathname, ".lustre")) {
 			return pathname, path.Join(relPath...)
-		} else {
-			return "", ""
 		}
+		return "", ""
 	}
 
 	return findRelPath(dev, parent, append([]string{path.Base(pathname)}, relPath...))
