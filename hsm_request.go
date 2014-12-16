@@ -13,33 +13,43 @@ import (
 	"unsafe"
 )
 
-func RequestHsmArchive(fsID FilesystemID, archiveId uint, fids []Fid) error {
-	return hsmRequest(fsID, C.HUA_ARCHIVE, archiveId, fids)
+// RequestHsmArchive submits a request to the coordinator for the
+// specified list of fids to be archived to the specfied archive id.
+func RequestHsmArchive(fsID FilesystemID, archiveID uint, fids []Fid) error {
+	return hsmRequest(fsID, C.HUA_ARCHIVE, archiveID, fids)
 }
 
-func RequestHsmRestore(fsID FilesystemID, archiveId uint, fids []Fid) error {
-	return hsmRequest(fsID, C.HUA_RESTORE, archiveId, fids)
+// RequestHsmRestore submits a request to the coordinator for the
+// specified list of fids to be restored from the specfied archive id.
+func RequestHsmRestore(fsID FilesystemID, archiveID uint, fids []Fid) error {
+	return hsmRequest(fsID, C.HUA_RESTORE, archiveID, fids)
 }
 
-func RequestHsmRelease(fsID FilesystemID, archiveId uint, fids []Fid) error {
-	return hsmRequest(fsID, C.HUA_RELEASE, archiveId, fids)
+// RequestHsmRelease submits a request to the coordinator for the
+// specified list of fids to be released.
+func RequestHsmRelease(fsID FilesystemID, archiveID uint, fids []Fid) error {
+	return hsmRequest(fsID, C.HUA_RELEASE, archiveID, fids)
 }
 
-func RequestHsmRemove(fsID FilesystemID, archiveId uint, fids []Fid) error {
-	return hsmRequest(fsID, C.HUA_REMOVE, archiveId, fids)
+// RequestHsmRemove submits a request to the coordinator for the
+// specified list of fids to be removed from the HSM backend.
+func RequestHsmRemove(fsID FilesystemID, archiveID uint, fids []Fid) error {
+	return hsmRequest(fsID, C.HUA_REMOVE, archiveID, fids)
 }
 
-func RequestHsmCancel(fsID FilesystemID, archiveId uint, fids []Fid) error {
-	return hsmRequest(fsID, C.HUA_CANCEL, archiveId, fids)
+// RequestHsmCancel submits a request to the coordinator to cancel any
+// outstanding requests involving the specified list of fids.
+func RequestHsmCancel(fsID FilesystemID, archiveID uint, fids []Fid) error {
+	return hsmRequest(fsID, C.HUA_CANCEL, archiveID, fids)
 }
 
-func hsmRequest(fsID FilesystemID, cmd uint, archiveId uint, fids []Fid) error {
+func hsmRequest(fsID FilesystemID, cmd uint, archiveID uint, fids []Fid) error {
 	mnt, err := fsID.Path()
 	if err != nil {
 		return err
 	}
 
-	if _, err = request(mnt, cmd, archiveId, fids); err != nil {
+	if _, err = request(mnt, cmd, archiveID, fids); err != nil {
 		return err
 	}
 	return nil
@@ -88,9 +98,8 @@ func request(r string, cmd uint, archiveID uint, fids []Fid) (int, error) {
 	if rc != 0 || err != nil {
 		if err != nil {
 			return 0, fmt.Errorf("lustre: Got error from llapi_hsm_request: %s", err.Error())
-		} else {
-			return 0, fmt.Errorf("lustre: Got rc %d from llapi_hsm_request()", rc)
 		}
+		return 0, fmt.Errorf("lustre: Got rc %d from llapi_hsm_request()", rc)
 	}
 	return num, nil
 }
