@@ -11,12 +11,13 @@ import "C"
 
 import (
 	"fmt"
-	"hpdd/lustre/status"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.intel.com/hpdd/lustre/status"
 )
 
 // Version returns the current Lustre version string.
