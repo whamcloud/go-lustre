@@ -1,10 +1,10 @@
 package lustre_test
 
 import (
-	"hpdd/lustre"
-	"hpdd/test/harness"
-	"hpdd/test/log"
-	"hpdd/test/utils"
+	"github.intel.com/hpdd/lustre"
+	"github.intel.com/hpdd/test/harness"
+	"github.intel.com/hpdd/test/log"
+	"github.intel.com/hpdd/test/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
