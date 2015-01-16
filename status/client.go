@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"launchpad.net/goyaml"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -68,7 +68,7 @@ type (
 		State        string
 		Target       string
 		ConnectFlags []string `yaml:"connect_flags"`
-		ImportFlags  []string `yam:"import_flags"`
+		ImportFlags  []string `yaml:"import_flags"`
 		Connection   ConnectionStatus
 		// OSC only
 		Averages WriteDataAverages `yaml:"write_data_averages"`
@@ -112,7 +112,7 @@ func ReadImport(path string) (*Import, error) {
 		return nil, err
 	}
 	b = removeZeros(b) // sanitize
-	e := goyaml.Unmarshal(b, &result)
+	e := yaml.Unmarshal(b, &result)
 	if e != nil {
 		return nil, e
 	}
