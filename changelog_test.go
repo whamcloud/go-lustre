@@ -17,14 +17,11 @@ import (
 var _ = Describe("When Changelogs are enabled", func() {
 	var changelogUser string
 	var changelogMdt string
-	var changelog *lustre.Changelog
 
 	BeforeEach(func() {
 		var err error
 		changelogUser, changelogMdt, err = harness.RegisterChangelogUser()
 		Ω(err).ShouldNot(HaveOccurred())
-		changelog = lustre.ChangelogOpen(harness.ClientMount(), false, 0)
-		Ω(changelog).ShouldNot(BeNil())
 	})
 	AfterEach(func() {
 		err := lustre.ChangelogClear(changelogMdt, changelogUser, 0)
@@ -32,7 +29,6 @@ var _ = Describe("When Changelogs are enabled", func() {
 
 		err = harness.DeregisterChangelogUser(changelogUser, changelogMdt)
 		Ω(err).ShouldNot(HaveOccurred())
-		changelog.Close()
 	})
 	Describe("creating a file", func() {
 		fileName := "new-file"
@@ -47,6 +43,9 @@ var _ = Describe("When Changelogs are enabled", func() {
 		It("should result in a CREAT changelog entry.", func() {
 			var entry *lustre.ChangelogEntry = nil
 			Eventually(func() *lustre.ChangelogEntry {
+				changelog := lustre.ChangelogOpen(harness.ClientMount(), false, 0)
+				Ω(changelog).ShouldNot(BeNil())
+				defer changelog.Close()
 				entry = changelog.GetNextLogEntry()
 				return entry
 			}, 5*time.Second).ShouldNot(BeNil())
@@ -61,11 +60,6 @@ var _ = Describe("When Changelogs are enabled", func() {
 		var testFile string
 		BeforeEach(func() {
 			testFile = utils.CreateTestFile(fileName)
-			entry := changelog.GetNextLogEntry()
-			Ω(entry).ShouldNot(BeNil())
-			log.Debug(entry.String())
-			// Close this here because we're not going to use it.
-			changelog.Close()
 		})
 		AfterEach(func() {
 			err := os.Remove(testFile)
@@ -81,7 +75,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 			var entry *lustre.ChangelogEntry
 			var nextIndex int64
 			getRename := func() *lustre.ChangelogEntry {
-				changelog = lustre.ChangelogOpen(harness.ClientMount(), false, nextIndex)
+				changelog := lustre.ChangelogOpen(harness.ClientMount(), false, nextIndex)
 				Ω(changelog).ShouldNot(BeNil())
 				for entry = changelog.GetNextLogEntry(); entry != nil; entry = changelog.GetNextLogEntry() {
 					if entry.TypeName == "RENME" {
