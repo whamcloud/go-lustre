@@ -153,7 +153,7 @@ func fidPathnames(mnt RootDir, fidstr string, absPath bool) ([]string, error) {
 	return paths, nil
 }
 
-// Pathnames returns all paths for a FIDSTR.
+// FidAbsPathnames returns all paths for a FIDSTR.
 //
 // This returns a slice containing all names that reference
 // the FID.
@@ -162,7 +162,7 @@ func FidAbsPathnames(mnt RootDir, fidstr string) ([]string, error) {
 	return fidPathnames(mnt, fidstr, true)
 }
 
-// Pathnames returns all paths for a FIDSTR.
+// FidPathnames returns all paths for a FIDSTR.
 //
 // This returns a slice containing all names that reference
 // the FID.
@@ -171,6 +171,8 @@ func FidPathnames(mnt RootDir, fidstr string) ([]string, error) {
 	return fidPathnames(mnt, fidstr, false)
 }
 
+// FidPathError is an error that occurs while retrieving the pathname for a fid.
+//
 type FidPathError struct {
 	Fid string
 	Rc  int
@@ -183,7 +185,7 @@ func (e *FidPathError) Error() string {
 
 func fid2path(device string, fidstr string, recno *int64, linkno *int) (string, error) {
 	var buffer [4096]C.char
-	var clinkno C.int = C.int(*linkno)
+	var clinkno = C.int(*linkno)
 	rc, err := C.llapi_fid2path(C.CString(device), C.CString(fidstr),
 		&buffer[0],
 		C.int(len(buffer)),

@@ -19,7 +19,7 @@ import (
 
 var errStatError = errors.New("stat failure")
 
-func stat_to_cstat(fi os.FileInfo) *C.struct_stat {
+func statToCstat(fi os.FileInfo) *C.struct_stat {
 	stat, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		log.Printf("no stat info")
@@ -51,15 +51,15 @@ func HsmImport(
 	f string,
 	archive uint,
 	fi os.FileInfo,
-	stripe_size uint64,
-	stripe_offset int,
-	stripe_count int,
-	stripe_pattern int,
-	pool_name string) (*Fid, error) {
+	stripeSize uint64,
+	stripeOffset int,
+	stripeCount int,
+	stripePattern int,
+	poolName string) (*Fid, error) {
 
 	var fid Fid
 
-	st := stat_to_cstat(fi)
+	st := statToCstat(fi)
 	if st == nil {
 		return nil, errStatError
 	}
@@ -68,10 +68,10 @@ func HsmImport(
 		C.CString(f),
 		C.int(archive),
 		st,
-		C.ulonglong(stripe_size),
-		C.int(stripe_offset),
-		C.int(stripe_count),
-		C.int(stripe_pattern),
+		C.ulonglong(stripeSize),
+		C.int(stripeOffset),
+		C.int(stripeCount),
+		C.int(stripePattern),
 		nil,
 		(*C.lustre_fid)(&fid),
 	)
