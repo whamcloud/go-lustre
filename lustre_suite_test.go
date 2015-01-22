@@ -27,5 +27,5 @@ func TestLustre(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Lustre Suite")
-	fmt.Println("This line makes GoConvey happy...")
+	fmt.Println()
 }
