@@ -55,9 +55,9 @@ func HsmImport(
 	stripeOffset int,
 	stripeCount int,
 	stripePattern int,
-	poolName string) (*Fid, error) {
+	poolName string) (Fid, error) {
 
-	var fid Fid
+	var cfid C.lustre_fid
 
 	st := statToCstat(fi)
 	if st == nil {
@@ -73,10 +73,10 @@ func HsmImport(
 		C.int(stripeCount),
 		C.int(stripePattern),
 		nil,
-		(*C.lustre_fid)(&fid),
+		&cfid,
 	)
 	if rc < 0 {
 		return nil, err
 	}
-	return &fid, nil
+	return NewFid(&cfid), nil
 }

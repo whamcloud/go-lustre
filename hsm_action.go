@@ -123,8 +123,8 @@ func (ai *ActionItem) String() string {
 	return (*ActionItemHandle)(ai).String()
 }
 
-// ArchiveId returns the archive id associated with teh ActionItem.
-func (ai *ActionItem) ArchiveId() uint {
+// ArchiveID returns the archive id associated with teh ActionItem.
+func (ai *ActionItem) ArchiveID() uint {
 	return ai.archiveID
 }
 
@@ -209,18 +209,18 @@ func (ai *ActionItemHandle) Action() HsmAction {
 // This fid or xattrs on this file can be used as a key with
 // the HSM backend.
 func (ai *ActionItemHandle) Fid() Fid {
-	return Fid(ai.hai.hai_fid)
+	return NewFid(&ai.hai.hai_fid)
 }
 
 // DataFid returns the FID of the data file.
 // This file should be used for all Lustre IO for archive and restore commands.
-func (ai *ActionItemHandle) DataFid() (*Fid, error) {
-	var fid Fid
-	rc, err := C.llapi_hsm_action_get_dfid(ai.hcap, (*C.lustre_fid)(&fid))
+func (ai *ActionItemHandle) DataFid() (Fid, error) {
+	var cfid C.lustre_fid
+	rc, err := C.llapi_hsm_action_get_dfid(ai.hcap, &cfid)
 	if rc < 0 || err != nil {
 		return nil, err
 	}
-	return &fid, nil
+	return NewFid(&cfid), nil
 }
 
 // Fd returns the file descriptor of the DataFid.

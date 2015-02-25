@@ -99,7 +99,7 @@ func isDotLustre(dir string) bool {
 	}
 	if fi.IsDir() {
 		fid, err := LookupFid(dir)
-		if err == nil && fid == _DOT_LUSTRE_FID {
+		if err == nil && fid.IsDotLustre() {
 			return true
 		}
 	}

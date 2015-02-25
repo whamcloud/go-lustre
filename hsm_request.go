@@ -82,10 +82,10 @@ func request(r string, cmd uint, archiveID uint, fids []Fid) (int, error) {
 		Cap:  fileCount,
 	}
 	userItems := *(*[]C.struct_hsm_user_item)(unsafe.Pointer(&hdr))
-	for i, fid := range fids {
+	for i, f := range fids {
 		userItems[i].hui_extent.offset = 0
 		userItems[i].hui_extent.length = C.__u64(^uint(0))
-		userItems[i].hui_fid = C.lustre_fid(fid)
+		userItems[i].hui_fid = *f.(*fid).cfid
 		hur.hur_request.hr_itemcount++
 	}
 

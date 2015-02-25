@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 )
 
 var _ = Describe("In the FID Utility Library", func() {
@@ -35,7 +34,7 @@ var _ = Describe("In the FID Utility Library", func() {
 			It("should return a valid FID, given a valid path.", func() {
 				fid, err := lustre.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
-				Expect(reflect.TypeOf(fid).String()).To(Equal("lustre.Fid"))
+				Expect(fid).ToNot(BeNil())
 			})
 
 			It("should return an error, given an invalid path.", func() {
@@ -71,18 +70,13 @@ var _ = Describe("In the FID Utility Library", func() {
 	Describe("parsing functions,", func() {
 		Describe("ParseFid()", func() {
 			It("should correctly parse a valid fid string.", func() {
-				seq := 0x123
-				oid := 0x456
-				ver := 0
+				seq := uint64(0x123)
+				oid := uint32(0x456)
+				ver := uint32(0)
 				str := fmt.Sprintf("[%#x:%#x:%#x]", seq, oid, ver)
 				fid, err := lustre.ParseFid(str)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				// Can't access these fields because they're
-				// not exported from the lustre package.
-				/*Expect(fid.f_seq).To(Equal(seq))
-				Expect(fid.f_oid).To(Equal(oid))
-				Expect(fid.f_ver).To(Equal(ver))*/
 				Expect(fid.String()).To(Equal(str))
 			})
 
@@ -91,6 +85,13 @@ var _ = Describe("In the FID Utility Library", func() {
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Expect(fid.IsZero()).To(BeTrue())
+			})
+
+			It("should correctly parse the .lustre FID.", func() {
+				fid, err := lustre.ParseFid("[0x200000002:0x1:0x0]")
+				Ω(err).ShouldNot(HaveOccurred())
+
+				Expect(fid.IsDotLustre()).To(BeTrue())
 			})
 
 			It("should return an error, given a bad FID string.", func() {

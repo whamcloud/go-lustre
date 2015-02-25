@@ -240,16 +240,15 @@ func (cl *Changelog) GetNextLogEntry() *ChangelogEntry {
 	entry.Flags = uint(rec.cr_flags)
 	entry.Prev = uint(rec.cr_prev)
 	entry.Time = time.Unix(int64(rec.cr_time>>30), 0) // WTF?
-	entry.TargetFid = Fid(C.changelog_rec_tfid(rec))
-	entry.ParentFid = Fid(rec.cr_pfid)
+	tfid := C.changelog_rec_tfid(rec)
+	entry.TargetFid = NewFid(&tfid)
+	entry.ParentFid = NewFid(&rec.cr_pfid)
 	entry.Name = C.GoString(C.changelog_rec_name(rec))
 	if entry.HasRename() {
 		rename := C.changelog_rec_rename(rec)
-		if !Fid(rename.cr_sfid).IsZero() {
-			entry.SourceName = C.GoString(C.changelog_rec_sname(rec))
-			entry.SourceFid = Fid(rename.cr_sfid)
-			entry.SourceParentFid = Fid(rename.cr_spfid)
-		}
+		entry.SourceName = C.GoString(C.changelog_rec_sname(rec))
+		entry.SourceFid = NewFid(&rename.cr_sfid)
+		entry.SourceParentFid = NewFid(&rename.cr_spfid)
 	}
 	if entry.HasJob() {
 		jobid := C.changelog_rec_jobid(rec)
