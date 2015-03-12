@@ -163,17 +163,17 @@ func (entry *ChangelogEntry) FlagStrings() []string {
 		}
 	case C.CL_UNLINK:
 		if entry.Flags&C.CLF_UNLINK_LAST > 0 {
-			flagStrings = append(flagStrings, "Last Hardlink")
+			flagStrings = append(flagStrings, "Last_Hardlink")
 		}
 		if entry.Flags&C.CLF_UNLINK_HSM_EXISTS > 0 {
-			flagStrings = append(flagStrings, "HSM Cruft")
+			flagStrings = append(flagStrings, "HSM_Cruft")
 		}
 	case C.CL_RENAME:
 		if entry.Flags&C.CLF_RENAME_LAST > 0 {
-			flagStrings = append(flagStrings, "Last Hardlink")
+			flagStrings = append(flagStrings, "Last_Hardlink_Target")
 		}
 		if entry.Flags&C.CLF_RENAME_LAST_EXISTS > 0 {
-			flagStrings = append(flagStrings, "HSM Cruft")
+			flagStrings = append(flagStrings, "HSM_Cruft")
 		}
 	}
 
@@ -198,7 +198,9 @@ func (entry *ChangelogEntry) String() string {
 	buffer.WriteString(fmt.Sprintf("%02d%s ", entry.Type, s))
 	buffer.WriteString(fmt.Sprintf("%s ", entry.Time))
 	buffer.WriteString(fmt.Sprintf("%#x ", entry.Flags&C.CLF_FLAGMASK))
-	buffer.WriteString(fmt.Sprintf("%s ", strings.Join(entry.FlagStrings(), ",")))
+	if entry.Flags&C.CLF_FLAGMASK > 0 {
+		buffer.WriteString(fmt.Sprintf("(%s) ", strings.Join(entry.FlagStrings(), ",")))
+	}
 	if entry.HasJob() && len(entry.JobID) > 0 {
 		buffer.WriteString(fmt.Sprintf("job=%s ", entry.JobID))
 	}
