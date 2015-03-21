@@ -2,6 +2,7 @@ package lustre
 
 //
 // #cgo LDFLAGS: -llustreapi
+// #include <fcntl.h>
 // #include <lustre/lustreapi.h>
 //
 import "C"
@@ -47,10 +48,15 @@ func IoError(msg string) error {
 }
 
 // CoordinatorConnection opens a connection to the coordinator.
-func CoordinatorConnection(path RootDir) (*Coordinator, error) {
+func CoordinatorConnection(path RootDir, nonBlocking bool) (*Coordinator, error) {
 	var cdt = Coordinator{}
+	var flags C.int
 
-	_, err := C.llapi_hsm_copytool_register(&cdt.hcp, C.CString(string(path)), 0, nil, 0)
+	if nonBlocking {
+		flags = C.O_NONBLOCK
+	}
+
+	_, err := C.llapi_hsm_copytool_register(&cdt.hcp, C.CString(string(path)), 0, nil, flags)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +92,11 @@ func (cdt *Coordinator) Recv() ([]ActionItem, error) {
 		hai = C.hai_next(hai)
 	}
 	return items, nil
+}
+
+//GetFd returns copytool file descriptor
+func (cdt *Coordinator) GetFd() int {
+	return int(C.llapi_hsm_copytool_get_fd(cdt.hcp))
 }
 
 // Close terminates connection with coordinator.

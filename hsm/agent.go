@@ -1,0 +1,178 @@
+package hsm
+
+import (
+	"log"
+	"os"
+	"syscall"
+
+	"github.com/golang/glog"
+	"github.intel.com/hpdd/lustre"
+)
+
+// Agent receives HSM action  from the Coordinator.
+type Agent interface {
+	// Actions is a channel for actions. Mutiple listeners can use this channel.
+	// The channel will be closed when the Agent is shutdown.
+	Actions() <-chan lustre.ActionItem
+
+	// Stop signals the agent to shutdown. It disconnects from the coordinator and
+	// in progress actions will fail.
+	Stop()
+}
+
+type agent struct {
+	root    lustre.RootDir
+	stopFd  *os.File
+	actions <-chan lustre.ActionItem
+}
+
+// Start initializes an agent for the filesystem in root.
+func Start(root lustre.RootDir, done chan struct{}) (Agent, error) {
+	agent := &agent{root: root}
+
+	// This pipe is used by Stop() to signal the action waiter goroutine.
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	agent.stopFd = w
+	err = agent.launchActionWaiter(r, done)
+	if err != nil {
+		return nil, err
+	}
+	return agent, nil
+}
+
+func (agent *agent) Stop() {
+	// TODO: lock agent
+	if agent == nil || agent.stopFd == nil {
+		return
+	}
+	agent.stopFd.Write([]byte("stop"))
+	agent.stopFd.Close()
+	agent.stopFd = nil
+}
+
+func (agent *agent) Actions() <-chan lustre.ActionItem {
+	return agent.actions
+}
+func getFd(f *os.File) int {
+	return int(f.Fd())
+}
+
+// the version in syscall is missing the uint32 and doesn't compile here
+const EPOLLET = uint32(1) << 31
+
+func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
+	var err error
+	cdt, err := lustre.CoordinatorConnection(agent.root, true)
+	if err != nil {
+		glog.Fatal(err)
+	}
+
+	ch := make(chan lustre.ActionItem)
+
+	go func() {
+		var events = make([]syscall.EpollEvent, 2)
+		var ev syscall.EpollEvent
+		epfd, err := syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ev.Fd = int32(getFd(r))
+		ev.Events = syscall.EPOLLIN | EPOLLET
+		err = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, getFd(r), &ev)
+
+		ev.Fd = int32(cdt.GetFd())
+		ev.Events = syscall.EPOLLIN | EPOLLET
+		err = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, cdt.GetFd(), &ev)
+
+		defer func() {
+			cdt.Close()
+			close(ch)
+			r.Close()
+			syscall.Close(epfd)
+		}()
+
+		for {
+			var actions []lustre.ActionItem
+			nfds, err := syscall.EpollWait(epfd, events, -1)
+			if err != nil {
+				if err == syscall.Errno(syscall.EINTR) {
+					continue
+				}
+				log.Fatal(err)
+			}
+
+			for n := 0; n < nfds; n++ {
+				ev := events[n]
+				switch int(ev.Fd) {
+				case getFd(r):
+					buf := make([]byte, 32)
+					r.Read(buf)
+					// might be better to fall throuhg and exit at done below, but don't
+					// want to risk starting new actions when we're about to quit
+					return
+				case cdt.GetFd():
+					actions, err = cdt.Recv()
+					if err != nil {
+						glog.Error(err)
+						return
+					}
+				}
+
+			}
+
+			select {
+			case <-done:
+				glog.Error("actionWaiter done")
+				return
+			default:
+			}
+			for _, ai := range actions {
+				ch <- ai
+			}
+		}
+	}()
+
+	agent.actions = bufferedActionChannel(done, ch)
+	return nil
+}
+
+// bufferedActionChannel buffers the input channel into an arbitrarily sized queue, and returns
+// the channel for consumers to read from.
+func bufferedActionChannel(done <-chan struct{}, in <-chan lustre.ActionItem) <-chan lustre.ActionItem {
+	var queue []lustre.ActionItem
+	out := make(chan lustre.ActionItem)
+
+	go func() {
+		defer close(out)
+		for {
+			var send chan lustre.ActionItem
+			var first lustre.ActionItem
+
+			if len(queue) > 0 {
+				send = out
+				first = queue[0]
+			}
+			select {
+			case item, ok := <-in:
+				if !ok {
+					glog.Error("in channel failed, close out!")
+					return
+				}
+				queue = append(queue, item)
+
+			case send <- first:
+				queue = queue[1:]
+
+			case <-done:
+				glog.Error("buffered channel done")
+
+				return
+			}
+		}
+	}()
+
+	return out
+}
