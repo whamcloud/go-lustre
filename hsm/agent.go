@@ -13,7 +13,7 @@ import (
 type Agent interface {
 	// Actions is a channel for actions. Mutiple listeners can use this channel.
 	// The channel will be closed when the Agent is shutdown.
-	Actions() <-chan lustre.ActionItem
+	Actions() <-chan lustre.ActionRequest
 
 	// Stop signals the agent to shutdown. It disconnects from the coordinator and
 	// in progress actions will fail.
@@ -23,7 +23,7 @@ type Agent interface {
 type agent struct {
 	root    lustre.RootDir
 	stopFd  *os.File
-	actions <-chan lustre.ActionItem
+	actions <-chan lustre.ActionRequest
 }
 
 // Start initializes an agent for the filesystem in root.
@@ -53,7 +53,7 @@ func (agent *agent) Stop() {
 	agent.stopFd = nil
 }
 
-func (agent *agent) Actions() <-chan lustre.ActionItem {
+func (agent *agent) Actions() <-chan lustre.ActionRequest {
 	return agent.actions
 }
 func getFd(f *os.File) int {
@@ -70,7 +70,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 		glog.Fatal(err)
 	}
 
-	ch := make(chan lustre.ActionItem)
+	ch := make(chan lustre.ActionRequest)
 
 	go func() {
 		var events = make([]syscall.EpollEvent, 2)
@@ -130,7 +130,8 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 			default:
 			}
 			for _, ai := range actions {
-				ch <- ai
+				a := ai
+				ch <- &a
 			}
 		}
 	}()
@@ -141,15 +142,15 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 
 // bufferedActionChannel buffers the input channel into an arbitrarily sized queue, and returns
 // the channel for consumers to read from.
-func bufferedActionChannel(done <-chan struct{}, in <-chan lustre.ActionItem) <-chan lustre.ActionItem {
-	var queue []lustre.ActionItem
-	out := make(chan lustre.ActionItem)
+func bufferedActionChannel(done <-chan struct{}, in <-chan lustre.ActionRequest) <-chan lustre.ActionRequest {
+	var queue []lustre.ActionRequest
+	out := make(chan lustre.ActionRequest)
 
 	go func() {
 		defer close(out)
 		for {
-			var send chan lustre.ActionItem
-			var first lustre.ActionItem
+			var send chan lustre.ActionRequest
+			var first lustre.ActionRequest
 
 			if len(queue) > 0 {
 				send = out

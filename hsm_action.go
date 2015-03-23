@@ -108,11 +108,35 @@ func (cdt *Coordinator) Close() {
 	}
 }
 
+type (
+	// ActionRequest is an HSM action
+	ActionRequest interface {
+		Begin(mdtIndex int, openFlags int, isError bool) (ActionHandle, error)
+		FailImmediately(errval int)
+		ArchiveID() uint
+		String() string
+	}
+
+	// ActionHandle is an HSM action that is currently being processed
+	ActionHandle interface {
+		Progress(offset uint64, length uint64, totalLength uint64, flags int) error
+		End(offset uint64, length uint64, flags int, errval int) error
+		Action() HsmAction
+		Fid() Fid
+		DataFid() (Fid, error)
+		Fd() (uintptr, error)
+		Offset() uint64
+		ArchiveID() uint
+		Length() uint64
+		String() string
+	}
+)
+
 // Begin prepares an ActionItem for processing.
 //
 // returns an ActionItemHandle. The End method must be called to complete
 // this action.
-func (ai *ActionItem) Begin(mdtIndex int, openFlags int, isError bool) (*ActionItemHandle, error) {
+func (ai *ActionItem) Begin(mdtIndex int, openFlags int, isError bool) (ActionHandle, error) {
 	rc, err := C.llapi_hsm_action_begin(
 		&ai.hcap,
 		ai.cdt.hcp,
