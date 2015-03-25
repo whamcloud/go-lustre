@@ -4,7 +4,7 @@ package llapi
 // #include <stdlib.h>
 // #include <lustre/lustreapi.h>
 //
-// /* cr_tfid in a union, so cgo essentially ignores it */
+// /* cr_tfid is a union, so cgo essentially ignores it */
 // lustre_fid changelog_rec_tfid(struct changelog_rec *rec) {
 //    return rec->cr_tfid;
 // }
@@ -14,267 +14,332 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.intel.com/hpdd/lustre"
+	"github.intel.com/hpdd/lustre/changelog"
 )
 
-type (
-	// Changelog is a handle for an open changelog.
-	Changelog struct {
-		priv *byte
-	}
-
-	// ChangelogEntry is a change log entry. JobId is only avaiable if HasJob() is true.
-	// The Source* fields are only available if HasRename() is true.
-	ChangelogEntry struct {
-		Name            string
-		Flags           uint
-		Index           int64
-		Prev            uint
-		Time            time.Time
-		Type            uint
-		TypeName        string
-		TargetFid       *CFid
-		ParentFid       *CFid
-		SourceName      string
-		SourceFid       *CFid
-		SourceParentFid *CFid
-		JobID           string
-	}
-)
-
-// Changelog Types
-const (
-	CL_MARK     = 0
-	CL_CREATE   = 1  /* namespace */
-	CL_MKDIR    = 2  /* namespace */
-	CL_HARDLINK = 3  /* namespace */
-	CL_SOFTLINK = 4  /* namespace */
-	CL_MKNOD    = 5  /* namespace */
-	CL_UNLINK   = 6  /* namespace */
-	CL_RMDIR    = 7  /* namespace */
-	CL_RENAME   = 8  /* namespace */
-	CL_EXT      = 9  /* namespace extended record (2nd half of rename) */
-	CL_OPEN     = 10 /* not currently used */
-	CL_CLOSE    = 11 /* may be written to log only with mtime change */
-	CL_LAYOUT   = 12 /* file layout/striping modified */
-	CL_TRUNC    = 13
-	CL_SETATTR  = 14
-	CL_XATTR    = 15
-	CL_HSM      = 16 /* HSM specific events, see flags */
-	CL_MTIME    = 17 /* Precedence: setattr > mtime > ctime > atime */
-	CL_CTIME    = 18
-	CL_ATIME    = 19
-	CL_LAST
-)
-
-// Changelog Flags
-const (
-	// Anything under the flagmask may be per-type (if desired)
-	CLF_FLAGMASK = C.CLF_FLAGMASK
-
-	// Flags for unlink
-	CLF_UNLINK_LAST       = C.CLF_UNLINK_LAST       // Unlink of last hardlink
-	CLF_UNLINK_HSM_EXISTS = C.CLF_UNLINK_HSM_EXISTS // Unlink of last link, HSM archive may exist
-
-	// Flags for rename
-	CLF_RENAME_LAST        = C.CLF_RENAME_LAST        // rename unlink last hardlink of target
-	CLF_RENAME_LAST_EXISTS = C.CLF_RENAME_LAST_EXISTS // rename unlink last hardlink of target, HSM archive may exist
-
-)
-
+// HsmEvent is a convenience type to represent an HSM event reported
+// in a changelog record's flags.
 type HsmEvent int32
-
-// HSM Event Types
-const (
-	HE_ARCHIVE HsmEvent = C.HE_ARCHIVE
-	HE_RESTORE HsmEvent = C.HE_RESTORE
-	HE_CANCEL  HsmEvent = C.HE_CANCEL
-	HE_RELEASE HsmEvent = C.HE_RELEASE
-	HE_REMOVE  HsmEvent = C.HE_REMOVE
-	HE_STATE   HsmEvent = C.HE_STATE
-	HE_SPARE1  HsmEvent = C.HE_SPARE1
-	HE_SPARE2  HsmEvent = C.HE_SPARE2
-)
 
 func (he *HsmEvent) String() string {
 	switch *he {
-	case HE_ARCHIVE:
+	case C.HE_ARCHIVE:
 		return "Archive"
-	case HE_RESTORE:
+	case C.HE_RESTORE:
 		return "Restore"
-	case HE_CANCEL:
+	case C.HE_CANCEL:
 		return "Cancel"
-	case HE_RELEASE:
+	case C.HE_RELEASE:
 		return "Release"
-	case HE_REMOVE:
+	case C.HE_REMOVE:
 		return "Remove"
-	case HE_STATE:
+	case C.HE_STATE:
 		return "Changed State"
-	case HE_SPARE1:
+	case C.HE_SPARE1:
 		return "Spare1"
-	case HE_SPARE2:
+	case C.HE_SPARE2:
 		return "Spare2"
 	default:
-		panic(fmt.Sprintf("Unknown HsmEvent: %d", he))
+		return fmt.Sprintf("Unknown event: %d", *he)
 	}
 }
 
-// ChangelogOpen returns an object that can be used to read changelog entries.
-func ChangelogOpen(path string, follow bool, startRec int64) *Changelog {
-	cl := Changelog{}
-	var flags = C.CHANGELOG_FLAG_BLOCK | C.CHANGELOG_FLAG_JOBID
+// ChangelogHandle represents a Lustre Changelog
+type ChangelogHandle struct {
+	open   bool
+	device string
+	priv   *byte
+}
+
+// Open sets up the Changelog for reading from the first available record
+func (h *ChangelogHandle) Open(follow bool) error {
+	return h.OpenAt(1, follow)
+}
+
+// OpenAt sets up the Changelog for reading from the specified record index
+func (h *ChangelogHandle) OpenAt(startRec int64, follow bool) error {
+	if h.open {
+		return nil
+	}
+
+	// NB: CHANGELOG_FLAG_JOBID will be mandatory in future releases.
+	// CHANGELOG_FLAG_BLOCK seems to be ignored? Can we remove it?
+	flags := C.CHANGELOG_FLAG_BLOCK | C.CHANGELOG_FLAG_JOBID
+
+	// NB: CHANGELOG_FLAG_FOLLOW is broken and hasn't worked for a
+	// long time. This code is here in case it ever starts working
+	// again.
 	if follow {
 		flags |= C.CHANGELOG_FLAG_FOLLOW
 	}
 
-	p := C.CString(path)
-	defer C.free(unsafe.Pointer(p))
-	rc, err := C.llapi_changelog_start((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)),
-		uint32(flags),
-		p,
-		C.longlong(startRec))
+	cDevice := C.CString(h.device)
+	defer C.free(unsafe.Pointer(cDevice))
+
+	rc := C.llapi_changelog_start((*unsafe.Pointer)(unsafe.Pointer(&h.priv)),
+		uint32(flags), cDevice, C.longlong(startRec))
 	if rc != 0 {
-		fmt.Printf("error %v, %v", rc, err)
-		return nil
+		return fmt.Errorf("Got nonzero RC from llapi_changelog_start: %d", rc)
 	}
-	return &cl
+
+	h.open = true
+	return nil
 }
 
-// Close the changelog handle.
-func (cl *Changelog) Close() {
-	_, err := C.llapi_changelog_fini((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)))
-	cl.priv = nil
+// Close closes the Changelog handle
+func (h *ChangelogHandle) Close() error {
+	rc := C.llapi_changelog_fini((*unsafe.Pointer)(unsafe.Pointer(&h.priv)))
+	if rc != 0 {
+		return fmt.Errorf("Got nonzero RC from llapi_changelog_fini: %d", rc)
+	}
+
+	h.open = false
+	h.priv = nil
+	return nil
+}
+
+// NextRecord retrieves the next available record
+func (h *ChangelogHandle) NextRecord() (changelog.Record, error) {
+	if !h.open {
+		return nil, fmt.Errorf("NextRecord() called on closed handle")
+	}
+
+	var rec *C.struct_changelog_rec
+
+	// 0 is valid message, < 0 is error code, 1 is EOF
+	rc := C.llapi_changelog_recv(unsafe.Pointer(h.priv), &rec)
+	if rc == 1 {
+		return nil, io.EOF
+	} else if rc != 0 {
+		return nil, fmt.Errorf("Got nonzero RC from llapi_changelog_recv: %d", rc)
+	}
+
+	r, err := newRecord(rec)
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
+	}
+	return r, nil
+}
+
+// Clear clears Changelog records for the specified token up to the supplied
+// end record index
+func (h *ChangelogHandle) Clear(token string, endRec int64) error {
+	cDevice := C.CString(h.device)
+	defer C.free(unsafe.Pointer(cDevice))
+	cToken := C.CString(token)
+	defer C.free(unsafe.Pointer(cToken))
+
+	rc := C.llapi_changelog_clear(cDevice, cToken, C.longlong(endRec))
+	if rc != 0 {
+		return fmt.Errorf("Got nonzero RC from llapi_changelog_clear: %d", rc)
+	}
+	return nil
+}
+
+func (h *ChangelogHandle) String() string {
+	return h.device
+}
+
+// CreateChangelogHandle creates a handle for accessing Changelog records
+// on the specified MDT.
+func CreateChangelogHandle(device string) changelog.Handle {
+	return &ChangelogHandle{
+		device: device,
 	}
 }
 
-// FlagStrings convers the log entry flogs into human readable format.
-func (entry *ChangelogEntry) FlagStrings() []string {
+// ChangelogRecord is a record in a Changelog
+type ChangelogRecord struct {
+	name            string
+	flags           uint
+	index           int64
+	prev            uint
+	time            time.Time
+	rType           uint
+	typeName        string
+	targetFid       *lustre.Fid
+	parentFid       *lustre.Fid
+	sourceName      string
+	sourceFid       *lustre.Fid
+	sourceParentFid *lustre.Fid
+	jobID           string
+}
+
+// Index returns the changelog record's index in the log
+func (r *ChangelogRecord) Index() int64 {
+	return r.index
+}
+
+// Name returns the filename associated with the record (if available)
+func (r *ChangelogRecord) Name() string {
+	return r.name
+}
+
+// Type returns the changelog record's type as a string
+func (r *ChangelogRecord) Type() string {
+	return r.typeName
+}
+
+// Time returns the changelog record's time
+func (r *ChangelogRecord) Time() time.Time {
+	return r.time
+}
+
+// TargetFid returns the recipient Fid for the changelog record's action
+func (r *ChangelogRecord) TargetFid() *lustre.Fid {
+	return r.targetFid
+}
+
+// ParentFid returns the parent Fid for the changelog record's action
+func (r *ChangelogRecord) ParentFid() *lustre.Fid {
+	return r.parentFid
+}
+
+// SourceFid returns the source Fid when a file is renamed
+func (r *ChangelogRecord) SourceFid() *lustre.Fid {
+	return r.sourceFid
+}
+
+// SourceParentFid returns the source Fid's parent Fid when a file is renamed
+func (r *ChangelogRecord) SourceParentFid() *lustre.Fid {
+	return r.sourceParentFid
+}
+
+// SourceName returns the source filename when a file is renamed
+func (r *ChangelogRecord) SourceName() string {
+	return r.sourceName
+}
+
+// JobID returns the changelog record's Job ID information (if available)
+func (r *ChangelogRecord) JobID() string {
+	return r.jobID
+}
+
+func (r *ChangelogRecord) String() string {
+	var buf bytes.Buffer
+
+	buf.WriteString(fmt.Sprintf("%d ", r.index))
+	buf.WriteString(fmt.Sprintf("%02d%s ", r.rType, r.typeName))
+	buf.WriteString(fmt.Sprintf("%s ", r.time))
+	buf.WriteString(fmt.Sprintf("%#x ", r.flags&C.CLF_FLAGMASK))
+	buf.WriteString(fmt.Sprintf("%s ", strings.Join(r.flagStrings(), ",")))
+	if len(r.jobID) > 0 {
+		buf.WriteString(fmt.Sprintf("job=%s ", r.jobID))
+	}
+	if r.sourceFid != nil && !r.sourceFid.IsZero() {
+		buf.WriteString(fmt.Sprintf("%s/%s", r.sourceParentFid,
+			r.sourceFid))
+		if r.sourceParentFid != r.parentFid {
+			buf.WriteString(fmt.Sprintf("->%s/%s ",
+				r.parentFid, r.targetFid))
+		} else {
+			buf.WriteString(" ")
+		}
+	} else {
+		buf.WriteString(fmt.Sprintf("%s/%s ", r.parentFid, r.targetFid))
+	}
+	if len(r.sourceName) > 0 {
+		buf.WriteString(fmt.Sprintf("%s->", r.sourceName))
+	}
+	if len(r.name) > 0 {
+		buf.WriteString(r.name)
+	}
+
+	return buf.String()
+}
+
+func (r *ChangelogRecord) flagStrings() []string {
 	var flagStrings []string
 
-	switch entry.Type {
+	switch r.rType {
 	case C.CL_HSM:
-		event := HsmEvent(C.hsm_get_cl_event(C.__u16(entry.Flags)))
+		event := HsmEvent(C.hsm_get_cl_event(C.__u16(r.flags)))
 		flagStrings = append(flagStrings, event.String())
-		hsmFlags := C.hsm_get_cl_flags(C.int(entry.Flags))
+		hsmFlags := C.hsm_get_cl_flags(C.int(r.flags))
 		switch hsmFlags {
 		case C.CLF_HSM_DIRTY:
 			flagStrings = append(flagStrings, "Dirty")
 		}
 	case C.CL_UNLINK:
-		if entry.Flags&C.CLF_UNLINK_LAST > 0 {
-			flagStrings = append(flagStrings, "Last_Hardlink")
+		last, exists := r.IsLastUnlink()
+		if last {
+			flagStrings = append(flagStrings, "Last Hardlink Removed")
 		}
-		if entry.Flags&C.CLF_UNLINK_HSM_EXISTS > 0 {
-			flagStrings = append(flagStrings, "HSM_Cruft")
+		if exists {
+			flagStrings = append(flagStrings, "Exists in Archive")
 		}
 	case C.CL_RENAME:
-		if entry.Flags&C.CLF_RENAME_LAST > 0 {
-			flagStrings = append(flagStrings, "Last_Hardlink_Target")
+		last, exists := r.IsLastRename()
+		if last {
+			flagStrings = append(flagStrings, "Last Hardlink Renamed")
 		}
-		if entry.Flags&C.CLF_RENAME_LAST_EXISTS > 0 {
-			flagStrings = append(flagStrings, "HSM_Cruft")
+		if exists {
+			flagStrings = append(flagStrings, "Exists in Archive")
 		}
 	}
 
 	return flagStrings
 }
 
-// HasJob returns true if the entry has a JobID.
-func (entry *ChangelogEntry) HasJob() bool {
-	return entry.Flags&C.CLF_JOBID == C.CLF_JOBID
+// IsLastUnlink returns a tuple of boolean values to indicate:
+// 1) Whether or not the unlink was for the the last hardlink
+// 2) Whether or not there may still be an archive of the file in HSM
+func (r *ChangelogRecord) IsLastUnlink() (last, exists bool) {
+	if r.rType == C.CL_UNLINK {
+		last = r.flags&C.CLF_UNLINK_LAST > 0
+		exists = r.flags&C.CLF_UNLINK_HSM_EXISTS > 0
+	}
+	return
 }
 
-// HasRename returns true if entry rename info
-func (entry *ChangelogEntry) HasRename() bool {
-	return entry.Flags&C.CLF_RENAME == C.CLF_RENAME
+// IsLastRename returns a tuple of boolean values to indicate:
+// 1) Whether or not the rename was for the the last hardlink
+// 2) Whether or not there may still be an archive of the file in HSM
+func (r *ChangelogRecord) IsLastRename() (last, exists bool) {
+	if r.rType == C.CL_RENAME {
+		last = r.flags&C.CLF_RENAME_LAST > 0
+		exists = r.flags&C.CLF_RENAME_LAST_EXISTS > 0
+	}
+	return
 }
 
-func (entry *ChangelogEntry) String() string {
-	var buffer bytes.Buffer
-	s := C.GoString(C.changelog_type2str(C.int(entry.Type)))
-
-	buffer.WriteString(fmt.Sprintf("%d ", entry.Index))
-	buffer.WriteString(fmt.Sprintf("%02d%s ", entry.Type, s))
-	buffer.WriteString(fmt.Sprintf("%s ", entry.Time))
-	buffer.WriteString(fmt.Sprintf("%#x ", entry.Flags&C.CLF_FLAGMASK))
-	if entry.Flags&C.CLF_FLAGMASK > 0 {
-		buffer.WriteString(fmt.Sprintf("(%s) ", strings.Join(entry.FlagStrings(), ",")))
-	}
-	if entry.HasJob() && len(entry.JobID) > 0 {
-		buffer.WriteString(fmt.Sprintf("job=%s ", entry.JobID))
-	}
-	if entry.HasRename() && !entry.SourceFid.IsZero() {
-		buffer.WriteString(fmt.Sprintf("%v/%v", entry.SourceParentFid, entry.SourceFid))
-		if entry.SourceParentFid != entry.ParentFid {
-			buffer.WriteString(fmt.Sprintf("->%v/%v ", entry.ParentFid, entry.TargetFid))
-		} else {
-			buffer.WriteString(" ")
-		}
-	} else {
-		buffer.WriteString(fmt.Sprintf("%v/%v ", entry.ParentFid, entry.TargetFid))
-	}
-	if entry.HasRename() && len(entry.SourceName) > 0 {
-		buffer.WriteString(fmt.Sprintf("%s->", entry.SourceName))
-	}
-	if len(entry.Name) > 0 {
-		buffer.WriteString(entry.Name)
-	}
-	return buffer.String()
+func isRename(r *ChangelogRecord) bool {
+	return r.flags&C.CLF_RENAME == C.CLF_RENAME
 }
 
-// GetNextLogEntry returns the next available log entry
-// in the Changelog. This may block, depending on flags
-// passed to ChangelogStart.
-func (cl *Changelog) GetNextLogEntry() *ChangelogEntry {
-	var rec *C.struct_changelog_rec
-
-	rc := C.llapi_changelog_recv((unsafe.Pointer(cl.priv)),
-		&rec)
-	if rc != 0 {
-		return nil
-	}
-	entry := ChangelogEntry{}
-
-	entry.Index = int64(rec.cr_index)
-	entry.Type = uint(rec.cr_type)
-	entry.TypeName = C.GoString(C.changelog_type2str(C.int(entry.Type)))
-	entry.Flags = uint(rec.cr_flags)
-	entry.Prev = uint(rec.cr_prev)
-	entry.Time = time.Unix(int64(rec.cr_time>>30), 0) // WTF?
-	tfid := C.changelog_rec_tfid(rec)
-	entry.TargetFid = (*CFid)(&tfid)
-	entry.ParentFid = (*CFid)(&rec.cr_pfid)
-	entry.Name = C.GoString(C.changelog_rec_name(rec))
-	if entry.HasRename() {
-		rename := C.changelog_rec_rename(rec)
-		entry.SourceName = C.GoString(C.changelog_rec_sname(rec))
-		entry.SourceFid = (*CFid)(&rename.cr_sfid)
-		entry.SourceParentFid = (*CFid)(&rename.cr_spfid)
-	}
-	if entry.HasJob() {
-		jobid := C.changelog_rec_jobid(rec)
-		entry.JobID = C.GoString(&jobid.cr_jobid[0])
-	}
-
-	C.llapi_changelog_free(&rec)
-
-	return &entry
+func hasJobID(r *ChangelogRecord) bool {
+	return r.flags&C.CLF_JOBID == C.CLF_JOBID
 }
 
-// ChangelogClear delete records in changelog up to endRec.
-func ChangelogClear(path string, idStr string, endRec int64) error {
-	p := C.CString(path)
-	defer C.free(unsafe.Pointer(p))
-	id := C.CString(idStr)
-	defer C.free(unsafe.Pointer(id))
-
-	rc, err := C.llapi_changelog_clear(p, id, C.longlong(endRec))
-	if rc < 0 || err != nil {
-		return fmt.Errorf("changelog: Unable to clear log (%v, %v, %v): %d %v", path, idStr, endRec, rc, err)
+func newRecord(cRec *C.struct_changelog_rec) (changelog.Record, error) {
+	tfid := C.changelog_rec_tfid(cRec)
+	record := &ChangelogRecord{
+		name:      C.GoString(C.changelog_rec_name(cRec)),
+		index:     int64(cRec.cr_index),
+		rType:     uint(cRec.cr_type),
+		typeName:  C.GoString(C.changelog_type2str(C.int(cRec.cr_type))),
+		flags:     uint(cRec.cr_flags),
+		prev:      uint(cRec.cr_prev),
+		time:      time.Unix(int64(cRec.cr_time>>30), 0), // WTF?
+		targetFid: fromCFid(&tfid),
+		parentFid: fromCFid(&cRec.cr_pfid),
 	}
-	return nil
+	if isRename(record) {
+		rename := C.changelog_rec_rename(cRec)
+		record.sourceName = C.GoString(C.changelog_rec_sname(cRec))
+		record.sourceFid = fromCFid(&rename.cr_sfid)
+		record.sourceParentFid = fromCFid(&rename.cr_spfid)
+	}
+	if hasJobID(record) {
+		jobid := C.changelog_rec_jobid(cRec)
+		record.jobID = C.GoString(&jobid.cr_jobid[0])
+	}
+
+	return record, nil
 }
