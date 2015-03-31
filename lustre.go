@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.intel.com/hpdd/lustre/status"
@@ -53,6 +54,74 @@ func MountID(mountPath string) (*status.LustreClient, error) {
 
 // RootDir represent a the mount point of a Lustre filesystem.
 type RootDir string
+
+type mountDir struct {
+	path   RootDir
+	lock   sync.Mutex
+	opened bool
+	f      *os.File
+}
+
+// A cache of file handles per lustre mount point. Currently used to fetch the host Mdt for a file.
+// Could merge with RootDir and ensure RootDir is a singleton per client
+var openMount map[RootDir]*mountDir
+
+func init() {
+	openMount = make(map[RootDir]*mountDir)
+}
+
+func (m *mountDir) open() error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if !m.opened {
+		f, err := os.Open(string(m.path))
+		if err != nil {
+			return err
+		}
+
+		m.f = f
+		m.opened = true
+	}
+	return nil
+}
+
+func (m *mountDir) String() string {
+	return string(m.path)
+}
+
+func (m *mountDir) GetMdt(in Fid) (int, error) {
+	var mdtIndex C.int
+	f, ok := in.(*fid)
+	if !ok {
+		return 0, fmt.Errorf("Not a C fid: %v\n", in)
+	}
+	if !m.opened {
+		err := m.open()
+		if err != nil {
+			return 0, err
+		}
+	}
+	rc, err := C.llapi_get_mdt_index_by_fid(C.int(m.f.Fd()), f.cfid, &mdtIndex)
+	if rc < 0 || err != nil {
+		return 0, err
+	}
+	return int(mdtIndex), nil
+}
+
+func getOpenMount(root RootDir) *mountDir {
+	//	var mnt *mountDir
+	mnt, ok := openMount[root]
+	if !ok {
+		mnt = &mountDir{path: root}
+		openMount[root] = mnt
+	}
+	return mnt
+}
+
+func GetMdt(root RootDir, f Fid) (int, error) {
+	mnt := getOpenMount(root)
+	return mnt.GetMdt(f)
+}
 
 // Join args with root dir to create an absolute path.
 // FIXME: replace this with OpenAt and friends

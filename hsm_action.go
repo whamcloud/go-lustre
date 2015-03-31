@@ -17,7 +17,8 @@ import (
 type (
 	// Coordinator receives HSM actions to execute.
 	Coordinator struct {
-		hcp *C.struct_hsm_copytool_private
+		root RootDir
+		hcp  *C.struct_hsm_copytool_private
 	}
 
 	// ActionItem is one action to perform on specified file.
@@ -49,7 +50,7 @@ func IoError(msg string) error {
 
 // CoordinatorConnection opens a connection to the coordinator.
 func CoordinatorConnection(path RootDir, nonBlocking bool) (*Coordinator, error) {
-	var cdt = Coordinator{}
+	var cdt = Coordinator{root: path}
 	var flags C.int
 
 	if nonBlocking {
@@ -111,7 +112,7 @@ func (cdt *Coordinator) Close() {
 type (
 	// ActionRequest is an HSM action
 	ActionRequest interface {
-		Begin(mdtIndex int, openFlags int, isError bool) (ActionHandle, error)
+		Begin(openFlags int, isError bool) (ActionHandle, error)
 		FailImmediately(errval int)
 		ArchiveID() uint
 		String() string
@@ -136,7 +137,18 @@ type (
 //
 // returns an ActionItemHandle. The End method must be called to complete
 // this action.
-func (ai *ActionItem) Begin(mdtIndex int, openFlags int, isError bool) (ActionHandle, error) {
+func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
+	mdtIndex := -1
+	if ai.Action() == RESTORE && !isError {
+		var err error
+		mdtIndex, err = GetMdt(ai.cdt.root, ai.Fid())
+		if err != nil {
+
+			//Fixme...
+			glog.Fatal(err)
+		}
+	}
+
 	rc, err := C.llapi_hsm_action_begin(
 		&ai.hcap,
 		ai.cdt.hcp,
@@ -145,7 +157,10 @@ func (ai *ActionItem) Begin(mdtIndex int, openFlags int, isError bool) (ActionHa
 		C.int(openFlags),
 		C.bool(isError))
 	if rc < 0 {
+		var extent *C.struct_hsm_extent
+		C.llapi_hsm_action_end(&ai.hcap, extent, 0, C.int(-1))
 		if err != nil {
+			glog.Errorf("action_begin failed: %v\n", err)
 			return nil, err
 		}
 		return nil, IoError("IO error")
@@ -163,10 +178,22 @@ func (ai *ActionItem) ArchiveID() uint {
 	return ai.archiveID
 }
 
+// Action returns name of the action.
+func (ai *ActionItem) Action() HsmAction {
+	return HsmAction(ai.hai.hai_action)
+}
+
+// Fid returns the FID for the actual file for ths action.
+// This fid or xattrs on this file can be used as a key with
+// the HSM backend.
+func (ai *ActionItem) Fid() Fid {
+	return NewFid(&ai.hai.hai_fid)
+}
+
 // FailImmediately completes the ActinoItem with given error.
 // The passed ActionItem is no longer valid when this function returns.
 func (ai *ActionItem) FailImmediately(errval int) {
-	aih, err := ai.Begin(0, 0, true)
+	aih, err := ai.Begin(0, true)
 	if err != nil {
 		glog.Errorf("begin failed: %s", ai.String())
 		return
@@ -182,7 +209,7 @@ func lengthStr(length uint64) string {
 }
 
 func (ai *ActionItemHandle) String() string {
-	return fmt.Sprintf("AI: %v %v %v %d,%v", ai.hai.hai_cookie, ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()))
+	return fmt.Sprintf("AI: %x %v %v %d,%v", ai.hai.hai_cookie, ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()))
 }
 
 // Progress reports current progress of an action.
