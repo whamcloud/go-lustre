@@ -1,6 +1,7 @@
-package lustre
+package llapi
 
 // #cgo LDFLAGS: -llustreapi
+// #include <stdlib.h>
 // #include <lustre/lustreapi.h>
 //
 // /* cr_tfid in a union, so cgo essentially ignores it */
@@ -34,11 +35,11 @@ type (
 		Time            time.Time
 		Type            uint
 		TypeName        string
-		TargetFid       Fid
-		ParentFid       Fid
+		TargetFid       *CFid
+		ParentFid       *CFid
 		SourceName      string
-		SourceFid       Fid
-		SourceParentFid Fid
+		SourceFid       *CFid
+		SourceParentFid *CFid
 		JobID           string
 	}
 )
@@ -128,9 +129,11 @@ func ChangelogOpen(path string, follow bool, startRec int64) *Changelog {
 		flags |= C.CHANGELOG_FLAG_FOLLOW
 	}
 
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
 	rc, err := C.llapi_changelog_start((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)),
 		uint32(flags),
-		C.CString(path),
+		p,
 		C.longlong(startRec))
 	if rc != 0 {
 		fmt.Printf("error %v, %v", rc, err)
@@ -243,14 +246,14 @@ func (cl *Changelog) GetNextLogEntry() *ChangelogEntry {
 	entry.Prev = uint(rec.cr_prev)
 	entry.Time = time.Unix(int64(rec.cr_time>>30), 0) // WTF?
 	tfid := C.changelog_rec_tfid(rec)
-	entry.TargetFid = NewFid(&tfid)
-	entry.ParentFid = NewFid(&rec.cr_pfid)
+	entry.TargetFid = (*CFid)(&tfid)
+	entry.ParentFid = (*CFid)(&rec.cr_pfid)
 	entry.Name = C.GoString(C.changelog_rec_name(rec))
 	if entry.HasRename() {
 		rename := C.changelog_rec_rename(rec)
 		entry.SourceName = C.GoString(C.changelog_rec_sname(rec))
-		entry.SourceFid = NewFid(&rename.cr_sfid)
-		entry.SourceParentFid = NewFid(&rename.cr_spfid)
+		entry.SourceFid = (*CFid)(&rename.cr_sfid)
+		entry.SourceParentFid = (*CFid)(&rename.cr_spfid)
 	}
 	if entry.HasJob() {
 		jobid := C.changelog_rec_jobid(rec)
@@ -264,7 +267,12 @@ func (cl *Changelog) GetNextLogEntry() *ChangelogEntry {
 
 // ChangelogClear delete records in changelog up to endRec.
 func ChangelogClear(path string, idStr string, endRec int64) error {
-	rc, err := C.llapi_changelog_clear(C.CString(path), C.CString(idStr), C.longlong(endRec))
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	id := C.CString(idStr)
+	defer C.free(unsafe.Pointer(id))
+
+	rc, err := C.llapi_changelog_clear(p, id, C.longlong(endRec))
 	if rc < 0 || err != nil {
 		return fmt.Errorf("changelog: Unable to clear log (%v, %v, %v): %d %v", path, idStr, endRec, rc, err)
 	}

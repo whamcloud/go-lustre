@@ -3,14 +3,9 @@
 // Currently, this includes the HSM Copytool API, managing Fids, and reading changelogs.
 package lustre
 
-//
-// #cgo LDFLAGS: -llustreapi
-// #include <lustre/lustreapi.h>
-//
-import "C"
-
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,35 +13,28 @@ import (
 	"sync"
 	"syscall"
 
+	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/status"
 )
 
 // Version returns the current Lustre version string.
 func Version() string {
-	var buffer [4096]C.char
-	var cversion *C.char
-	var version string
-	_, err := C.llapi_get_version(&buffer[0], C.int(len(buffer)),
-		&cversion)
+	v, err := llapi.GetVersion()
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("GetVersion failed: %v\n", err)
 		return ""
 	}
-
-	version = C.GoString(cversion)
-	return version
+	return v
 }
 
 // MountID returns the local Lustre client indentifier for that mountpoint. This can
 // be used to determine which entries in /proc/fs/lustre as associated with
 // that client.
 func MountID(mountPath string) (*status.LustreClient, error) {
-	var buffer [2048]C.char
-	rc, err := C.llapi_getname(C.CString(mountPath), &buffer[0], C.size_t(len(buffer)))
-	if rc < 0 || err != nil {
-		return nil, fmt.Errorf("lustre:  %v %d %v", mountPath, rc, err)
+	id, err := llapi.GetName(mountPath)
+	if err != nil {
+		return nil, err
 	}
-	id := C.GoString(&buffer[0])
 	elem := strings.Split(id, "-")
 	c := status.LustreClient{FsName: elem[0], ClientID: elem[1]}
 	return &c, nil
@@ -90,7 +78,6 @@ func (m *mountDir) String() string {
 }
 
 func (m *mountDir) GetMdt(in Fid) (int, error) {
-	var mdtIndex C.int
 	f, ok := in.(*fid)
 	if !ok {
 		return 0, fmt.Errorf("Not a C fid: %v\n", in)
@@ -101,11 +88,11 @@ func (m *mountDir) GetMdt(in Fid) (int, error) {
 			return 0, err
 		}
 	}
-	rc, err := C.llapi_get_mdt_index_by_fid(C.int(m.f.Fd()), f.cfid, &mdtIndex)
-	if rc < 0 || err != nil {
+	mdtIndex, err := llapi.GetMdtIndexbyFid(int(m.f.Fd()), f.cfid)
+	if err != nil {
 		return 0, err
 	}
-	return int(mdtIndex), nil
+	return mdtIndex, nil
 }
 
 func getOpenMount(root RootDir) *mountDir {

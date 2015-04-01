@@ -1,7 +1,7 @@
-package lustre_test
+package llapi_test
 
 import (
-	"github.intel.com/hpdd/lustre"
+	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/log"
 	"github.intel.com/hpdd/test/utils"
@@ -24,7 +24,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 	AfterEach(func() {
-		err := lustre.ChangelogClear(changelogMdt, changelogUser, 0)
+		err := llapi.ChangelogClear(changelogMdt, changelogUser, 0)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		err = harness.DeregisterChangelogUser(changelogUser, changelogMdt)
@@ -41,9 +41,9 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 		It("should result in a CREAT changelog entry.", func() {
-			var entry *lustre.ChangelogEntry = nil
-			Eventually(func() *lustre.ChangelogEntry {
-				changelog := lustre.ChangelogOpen(harness.ClientMount(), false, 0)
+			var entry *llapi.ChangelogEntry = nil
+			Eventually(func() *llapi.ChangelogEntry {
+				changelog := llapi.ChangelogOpen(harness.ClientMount(), false, 0)
 				Ω(changelog).ShouldNot(BeNil())
 				defer changelog.Close()
 				entry = changelog.GetNextLogEntry()
@@ -72,10 +72,10 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			log.Debug("Renamed %s -> %s", oldFile, testFile)
 
-			var entry *lustre.ChangelogEntry
+			var entry *llapi.ChangelogEntry
 			var nextIndex int64
-			getRename := func() *lustre.ChangelogEntry {
-				changelog := lustre.ChangelogOpen(harness.ClientMount(), false, nextIndex)
+			getRename := func() *llapi.ChangelogEntry {
+				changelog := llapi.ChangelogOpen(harness.ClientMount(), false, nextIndex)
 				Ω(changelog).ShouldNot(BeNil())
 				for entry = changelog.GetNextLogEntry(); entry != nil; entry = changelog.GetNextLogEntry() {
 					if entry.TypeName == "RENME" {

@@ -1,4 +1,4 @@
-package lustre
+package llapi
 
 //
 // #cgo LDFLAGS: -llustreapi
@@ -55,7 +55,7 @@ func HsmImport(
 	stripeOffset int,
 	stripeCount int,
 	stripePattern int,
-	poolName string) (Fid, error) {
+	poolName string) (*CFid, error) {
 
 	var cfid C.lustre_fid
 
@@ -78,5 +78,5 @@ func HsmImport(
 	if rc < 0 {
 		return nil, err
 	}
-	return NewFid(&cfid), nil
+	return (*CFid)(&cfid), nil
 }

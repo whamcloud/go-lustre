@@ -1,4 +1,4 @@
-package lustre
+package llapi
 
 /*
 #cgo LDFLAGS: -llustreapi
@@ -101,12 +101,14 @@ func (s *HsmState) String() string {
 	return buffer.String()
 }
 
-// GetHsmState returns the HSM state for the given file.
-func GetHsmState(filePath string) (*HsmState, error) {
+// HsmStateGet returns the HSM state for the given file.
+func HsmStateGet(filePath string) (*HsmState, error) {
 	hus := C.hsm_user_state_alloc()
 	defer C.free(unsafe.Pointer(hus))
 
-	rc, err := C.llapi_hsm_state_get(C.CString(filePath), hus)
+	buf := C.CString(filePath)
+	defer C.free(unsafe.Pointer(buf))
+	rc, err := C.llapi_hsm_state_get(buf, hus)
 	if err != nil {
 		return nil, err
 	}

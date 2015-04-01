@@ -1,31 +1,25 @@
 package lustre
 
-//
-// #cgo LDFLAGS: -llustreapi
-// #include <fcntl.h>
-// #include <lustre/lustreapi.h>
-//
-import "C"
-
 import (
 	"errors"
 	"fmt"
 
 	"github.com/golang/glog"
+	"github.intel.com/hpdd/lustre/llapi"
 )
 
 type (
 	// Coordinator receives HSM actions to execute.
 	Coordinator struct {
 		root RootDir
-		hcp  *C.struct_hsm_copytool_private
+		hcp  *llapi.HsmCopytoolPrivate
 	}
 
 	// ActionItem is one action to perform on specified file.
 	ActionItem struct {
 		cdt       *Coordinator
-		hai       C.struct_hsm_action_item
-		hcap      *C.struct_hsm_copyaction_private
+		hai       *llapi.HsmActionItem
+		hcap      *llapi.HsmCopyActionPrivate
 		halFlags  uint64
 		archiveID uint
 	}
@@ -51,13 +45,15 @@ func IoError(msg string) error {
 // CoordinatorConnection opens a connection to the coordinator.
 func CoordinatorConnection(path RootDir, nonBlocking bool) (*Coordinator, error) {
 	var cdt = Coordinator{root: path}
-	var flags C.int
+	var err error
+
+	flags := llapi.CopytoolDefault
 
 	if nonBlocking {
-		flags = C.O_NONBLOCK
+		flags = llapi.CopytoolNonBlock
 	}
 
-	_, err := C.llapi_hsm_copytool_register(&cdt.hcp, C.CString(string(path)), 0, nil, flags)
+	cdt.hcp, err = llapi.HsmCopytoolRegister(path.String(), 0, nil, flags)
 	if err != nil {
 		return nil, err
 	}
@@ -67,44 +63,37 @@ func CoordinatorConnection(path RootDir, nonBlocking bool) (*Coordinator, error)
 // Recv blocks and waits for new action items from the coordinator.
 // Retuns a slice of ActionItems.
 func (cdt *Coordinator) Recv() ([]ActionItem, error) {
-	var hal *C.struct_hsm_action_list
-	var hai *C.struct_hsm_action_item
-	var msgsize C.int
 
 	if cdt.hcp == nil {
 		return nil, errors.New("coordinator closed")
 	}
-
-	rc, err := C.llapi_hsm_copytool_recv(cdt.hcp, &hal, &msgsize)
-	if rc < 0 || err != nil {
+	actionList, err := llapi.HsmCopytoolRecv(cdt.hcp)
+	if err != nil {
 		return nil, err
 	}
-
-	items := make([]ActionItem, 0, int(hal.hal_count))
-	hai = C.hai_first(hal)
-	for i := 0; i < int(hal.hal_count); i++ {
+	items := make([]ActionItem, len(actionList.Items))
+	for i, hai := range actionList.Items {
 		item := ActionItem{
-			halFlags:  uint64(hal.hal_flags),
-			archiveID: uint(hal.hal_archive_id),
+			halFlags:  actionList.Flags,
+			archiveID: actionList.ArchiveID,
 			cdt:       cdt,
-			hai:       *hai,
+			hai:       &hai,
 		}
-		items = append(items, item)
-		hai = C.hai_next(hai)
+		items[i] = item
 	}
 	return items, nil
 }
 
 //GetFd returns copytool file descriptor
 func (cdt *Coordinator) GetFd() int {
-	return int(C.llapi_hsm_copytool_get_fd(cdt.hcp))
+	return llapi.HsmCopytoolGetFd(cdt.hcp)
 }
 
 // Close terminates connection with coordinator.
 func (cdt *Coordinator) Close() {
 	if cdt.hcp != nil {
 		glog.Info("closing coordinator.")
-		C.llapi_hsm_copytool_unregister(&cdt.hcp)
+		llapi.HsmCopytoolUnregister(&cdt.hcp)
 		cdt.hcp = nil
 	}
 }
@@ -122,7 +111,7 @@ type (
 	ActionHandle interface {
 		Progress(offset uint64, length uint64, totalLength uint64, flags int) error
 		End(offset uint64, length uint64, flags int, errval int) error
-		Action() HsmAction
+		Action() llapi.HsmAction
 		Fid() Fid
 		DataFid() (Fid, error)
 		Fd() (uintptr, error)
@@ -139,7 +128,7 @@ type (
 // this action.
 func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 	mdtIndex := -1
-	if ai.Action() == RESTORE && !isError {
+	if ai.Action() == llapi.RESTORE && !isError {
 		var err error
 		mdtIndex, err = GetMdt(ai.cdt.root, ai.Fid())
 		if err != nil {
@@ -148,22 +137,17 @@ func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 			glog.Fatal(err)
 		}
 	}
-
-	rc, err := C.llapi_hsm_action_begin(
-		&ai.hcap,
+	var err error
+	ai.hcap, err = llapi.HsmActionBegin(
 		ai.cdt.hcp,
-		&ai.hai,
-		C.int(mdtIndex),
-		C.int(openFlags),
-		C.bool(isError))
-	if rc < 0 {
-		var extent *C.struct_hsm_extent
-		C.llapi_hsm_action_end(&ai.hcap, extent, 0, C.int(-1))
-		if err != nil {
-			glog.Errorf("action_begin failed: %v\n", err)
-			return nil, err
-		}
-		return nil, IoError("IO error")
+		ai.hai,
+		mdtIndex,
+		openFlags,
+		isError)
+	if err != nil {
+		llapi.HsmActionEnd(&ai.hcap, 0, 0, 0, -1)
+		glog.Errorf("action_begin failed: %v\n", err)
+		return nil, err
 
 	}
 	return (*ActionItemHandle)(ai), nil
@@ -179,15 +163,15 @@ func (ai *ActionItem) ArchiveID() uint {
 }
 
 // Action returns name of the action.
-func (ai *ActionItem) Action() HsmAction {
-	return HsmAction(ai.hai.hai_action)
+func (ai *ActionItem) Action() llapi.HsmAction {
+	return ai.hai.Action
 }
 
 // Fid returns the FID for the actual file for ths action.
 // This fid or xattrs on this file can be used as a key with
 // the HSM backend.
 func (ai *ActionItem) Fid() Fid {
-	return NewFid(&ai.hai.hai_fid)
+	return NewFid(&ai.hai.Fid)
 }
 
 // FailImmediately completes the ActinoItem with given error.
@@ -209,100 +193,60 @@ func lengthStr(length uint64) string {
 }
 
 func (ai *ActionItemHandle) String() string {
-	return fmt.Sprintf("AI: %x %v %v %d,%v", ai.hai.hai_cookie, ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()))
+	return fmt.Sprintf("AI: %x %v %v %d,%v", ai.hai.Cookie, ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()))
 }
 
 // Progress reports current progress of an action.
 func (ai *ActionItemHandle) Progress(offset uint64, length uint64, totalLength uint64, flags int) error {
-	extent := C.struct_hsm_extent{C.__u64(offset), C.__u64(length)}
-	rc, err := C.llapi_hsm_action_progress(ai.hcap, &extent, C.__u64(totalLength), C.int(flags))
-	if rc < 0 || err != nil {
-		return err
-	}
-	return nil
+	return llapi.HsmActionProgress(ai.hcap, offset, length, totalLength, flags)
 }
 
 // End completes an action with specified status.
 // No more requests should be made on this action after calling this.
 func (ai *ActionItemHandle) End(offset uint64, length uint64, flags int, errval int) error {
-	extent := C.struct_hsm_extent{C.__u64(offset), C.__u64(length)}
-	rc, err := C.llapi_hsm_action_end(&ai.hcap, &extent, C.int(flags), C.int(errval))
-	if rc < 0 || err != nil {
-		return err
-	}
-	return nil
-}
-
-// HsmAction indentifies which action to perform.
-type HsmAction uint32
-
-// HSM Action constants
-const (
-	NONE    = HsmAction(C.HSMA_NONE)
-	ARCHIVE = HsmAction(C.HSMA_ARCHIVE)
-	RESTORE = HsmAction(C.HSMA_RESTORE)
-	REMOVE  = HsmAction(C.HSMA_REMOVE)
-	CANCEL  = HsmAction(C.HSMA_CANCEL)
-)
-
-func (action HsmAction) String() string {
-	return C.GoString(C.hsm_copytool_action2name(C.enum_hsm_copytool_action(action)))
-	// i kinda prefer lowercase...
-	// switch action {
-	// case NONE:
-	// 	return "noop"
-	// case ARCHIVE:
-	// 	return "archive"
-	// case RESTORE:
-	// 	return "restore"
-	// case REMOVE:
-	// 	return "remove"
-	// case CANCEL:
-	// 	return "cancel"
-	// }
+	return llapi.HsmActionEnd(&ai.hcap, offset, length, flags, errval)
 }
 
 // Action returns name of the action.
-func (ai *ActionItemHandle) Action() HsmAction {
-	return HsmAction(ai.hai.hai_action)
+func (ai *ActionItemHandle) Action() llapi.HsmAction {
+	return ai.hai.Action
 }
 
 // Fid returns the FID for the actual file for ths action.
 // This fid or xattrs on this file can be used as a key with
 // the HSM backend.
 func (ai *ActionItemHandle) Fid() Fid {
-	return NewFid(&ai.hai.hai_fid)
+	return NewFid(&ai.hai.Fid)
 }
 
 // DataFid returns the FID of the data file.
 // This file should be used for all Lustre IO for archive and restore commands.
 func (ai *ActionItemHandle) DataFid() (Fid, error) {
-	var cfid C.lustre_fid
-	rc, err := C.llapi_hsm_action_get_dfid(ai.hcap, &cfid)
-	if rc < 0 || err != nil {
+	cfid, err := llapi.HsmActionGetDataFid(ai.hcap)
+	if err != nil {
 		return nil, err
 	}
-	return NewFid(&cfid), nil
+	return NewFid(cfid), nil
 }
 
 // Fd returns the file descriptor of the DataFid.
 // If used, this Fd must be closed prior to calling End.
 func (ai *ActionItemHandle) Fd() (uintptr, error) {
-	rc, err := C.llapi_hsm_action_get_fd(ai.hcap)
-	if rc < 0 || err != nil {
+	fd, err := llapi.HsmActionGetFd(ai.hcap)
+	if err != nil {
 		return 0, err
 	}
-	return uintptr(rc), nil
+	return fd, nil
 }
 
 // Offset returns the offset for the action.
 func (ai *ActionItemHandle) Offset() uint64 {
-	return uint64(ai.hai.hai_extent.offset)
+	return uint64(ai.hai.Extent.Offset)
 }
 
 // Length returns the length of the action request.
 func (ai *ActionItemHandle) Length() uint64 {
-	return uint64(ai.hai.hai_extent.length)
+	return uint64(ai.hai.Extent.Length)
 }
 
 // ArchiveID returns archive for this action.
