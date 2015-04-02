@@ -1,10 +1,10 @@
-package lustre_test
+package fs_test
 
 import (
 	"os"
 	"path"
 
-	"github.intel.com/hpdd/lustre"
+	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/test/harness"
 
 	. "github.com/onsi/ginkgo"
@@ -32,13 +32,13 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("Version()", func() {
 		It("should return the current Lustre version.", func() {
-			Expect(lustre.Version()).ToNot(Equal(""))
+			Expect(fs.Version()).ToNot(Equal(""))
 		})
 	})
 
 	Describe("MountId()", func() {
 		It("should not return an error, given a valid mount.", func() {
-			id, err := lustre.MountID(harness.ClientMount())
+			id, err := fs.MountID(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(id.FsName).ToNot(Equal(""))
@@ -48,28 +48,28 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountRoot()", func() {
 		It("should not fail, given a valid path.", func() {
-			mnt, err := lustre.MountRoot(harness.ClientMount())
+			mnt, err := fs.MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(string(mnt)).To(Equal(harness.ClientMount()))
 		})
 
 		It("should not fail, given a valid file in lustre", func() {
-			mnt, err := lustre.MountRoot(path.Join(harness.ClientMount(), testFiles[0]))
+			mnt, err := fs.MountRoot(path.Join(harness.ClientMount(), testFiles[0]))
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(string(mnt)).To(Equal(harness.ClientMount()))
 		})
 
 		It("should fail, given a non-Lustre path.", func() {
-			_, err := lustre.MountRoot("/usr/share/man")
+			_, err := fs.MountRoot("/usr/share/man")
 			Ω(err).Should(HaveOccurred())
 		})
 	})
 
 	Describe("MountRelPath()", func() {
 		It("should not fail, given a valid pathname.", func() {
-			mnt, relPath, err := lustre.MountRelPath(harness.ClientMount())
+			mnt, relPath, err := fs.MountRelPath(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(string(mnt)).To(Equal(harness.ClientMount()))
@@ -77,12 +77,12 @@ var _ = Describe("In the Lustre API functions,", func() {
 		})
 
 		It("should fail, given a non-Lustre pathname.", func() {
-			_, _, err := lustre.MountRelPath("/usr/share/man")
+			_, _, err := fs.MountRelPath("/usr/share/man")
 			Ω(err).Should(HaveOccurred())
 		})
 
 		It("should return mount and relative given pathname in lustre fs.", func() {
-			mnt, relPath, err := lustre.MountRelPath(path.Join(harness.ClientMount(), testFiles[0]))
+			mnt, relPath, err := fs.MountRelPath(path.Join(harness.ClientMount(), testFiles[0]))
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(string(mnt)).To(Equal(harness.ClientMount()))
@@ -92,7 +92,7 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("GetID()", func() {
 		It("should return the fs ID, given a valid mount.", func() {
-			id, err := lustre.GetID(harness.ClientMount())
+			id, err := fs.GetID(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(id).To(Equal(harness.FsID()))

@@ -23,6 +23,19 @@ func FidPath(mnt RootDir, f *lustre.Fid) string {
 	return path.Join(string(mnt), ".lustre", "fid", f.String())
 }
 
+// FidPathname returns a path for a FID.
+//
+// Paths are relative from the RootDir of the filesystem.
+// If the fid is referred to by more than one file (i.e. hard links),
+// the the LINKNO specifies a specific link to return. This does
+// not update linkno on return. Use Paths to retrieve all hard link
+// names.
+//
+func FidPathname(mnt RootDir, f *lustre.Fid, linkno int) (string, error) {
+	var recno int64
+	return llapi.Fid2Path(string(mnt), f, &recno, &linkno)
+}
+
 // FidPathnames returns all paths for a fid.
 //
 // This returns a slice containing all names that reference
@@ -116,19 +129,6 @@ func ParseFid(fidstr string) (Fid, error) {
 		return nil, err
 	}
 	return NewFid(cfid), nil
-}
-
-// FidPathname returns a path for a FID.
-//
-// Paths are relative from the RootDir of the filesystem.
-// If the fid is referred to by more than one file (i.e. hard links),
-// the the LINKNO specifies a specific link to return. This does
-// not update linkno on return. Use Paths to retrieve all hard link
-// names.
-//
-func FidPathname(mnt RootDir, fidstr string, linkno int) (string, error) {
-	var recno int64
-	return llapi.Fid2Path(string(mnt), fidstr, &recno, &linkno)
 }
 
 // FidAbsPathnames returns all paths for a FIDSTR.

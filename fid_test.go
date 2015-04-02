@@ -2,6 +2,7 @@ package lustre_test
 
 import (
 	"github.intel.com/hpdd/lustre"
+	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/test/harness"
 
 	. "github.com/onsi/ginkgo"
@@ -16,10 +17,10 @@ import (
 var _ = Describe("In the FID Utility Library", func() {
 	Describe("lookup functions,", func() {
 		var testFile *os.File
-		var mnt lustre.RootDir
+		var mnt fs.RootDir
 
 		BeforeEach(func() {
-			mnt, err := lustre.MountRoot(harness.ClientMount())
+			mnt, err := fs.MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			testFile, err = ioutil.TempFile(string(mnt), "test")
@@ -32,23 +33,23 @@ var _ = Describe("In the FID Utility Library", func() {
 
 		Describe("LookupFid()", func() {
 			It("should return a valid FID, given a valid path.", func() {
-				fid, err := lustre.LookupFid(testFile.Name())
+				fid, err := fs.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 				Expect(fid).ToNot(BeNil())
 			})
 
 			It("should return an error, given an invalid path.", func() {
-				_, err := lustre.LookupFid("/foo/bar/baz")
+				_, err := fs.LookupFid("/foo/bar/baz")
 				Ω(err).Should(HaveOccurred())
 			})
 		})
 
 		Describe("FidPathname()", func() {
 			It("should return a file path, given a valid fid.", func() {
-				fid, err := lustre.LookupFid(testFile.Name())
+				fid, err := fs.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
-				name, err := lustre.FidPathname(mnt, fid.String(), 0)
+				name, err := fs.FidPathname(mnt, fid, 0)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Expect(name).To(Equal(path.Base(testFile.Name())))
@@ -57,10 +58,10 @@ var _ = Describe("In the FID Utility Library", func() {
 
 		Describe("FidPathnames()", func() {
 			It("should return an array of paths, given a valid fid.", func() {
-				fid, err := lustre.LookupFid(testFile.Name())
+				fid, err := fs.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
-				names, err := lustre.FidPathnames(mnt, fid.String())
+				names, err := fs.FidPathnames(mnt, fid)
 				Ω(err).ShouldNot(HaveOccurred())
 				Expect(names[0]).To(Equal(path.Base(testFile.Name())))
 			})

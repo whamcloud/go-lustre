@@ -1,7 +1,8 @@
-package llapi_test
+package changelog_test
 
 import (
-	"github.intel.com/hpdd/lustre/llapi"
+	"github.intel.com/hpdd/lustre/changelog"
+	"github.intel.com/hpdd/lustre/changelog/handle"
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/log"
 	"github.intel.com/hpdd/test/utils"
@@ -24,7 +25,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 	AfterEach(func() {
-		err := llapi.ChangelogClear(changelogMdt, changelogUser, 0)
+		err := handle.Clear(changelogMdt, changelogUser, 0)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		err = harness.DeregisterChangelogUser(changelogUser, changelogMdt)
@@ -40,18 +41,23 @@ var _ = Describe("When Changelogs are enabled", func() {
 			err := os.Remove(testFile)
 			Ω(err).ShouldNot(HaveOccurred())
 		})
-		It("should result in a CREAT changelog entry.", func() {
-			var entry *llapi.ChangelogEntry = nil
-			Eventually(func() *llapi.ChangelogEntry {
-				changelog := llapi.ChangelogOpen(harness.ClientMount(), false, 0)
-				Ω(changelog).ShouldNot(BeNil())
-				defer changelog.Close()
-				entry = changelog.GetNextLogEntry()
-				return entry
+		It("should result in a CREAT changelog record.", func() {
+			var rec changelog.Record
+			var err error
+			Eventually(func() changelog.Record {
+				h := handle.Create(changelogMdt)
+				defer h.Close()
+
+				err = h.Open(false)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				rec, err = h.NextRecord()
+				return rec
 			}, 5*time.Second).ShouldNot(BeNil())
-			log.Debug(entry.String())
-			Expect(entry.TypeName).To(Equal("CREAT"))
-			Expect(entry.Name).To(Equal(fileName))
+			Ω(err).ShouldNot(HaveOccurred())
+			log.Debug(rec.String())
+			Expect(rec.Type()).To(Equal("CREAT"))
+			Expect(rec.Name()).To(Equal(fileName))
 		})
 	})
 	Describe("renaming a file", func() {
@@ -72,24 +78,28 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			log.Debug("Renamed %s -> %s", oldFile, testFile)
 
-			var entry *llapi.ChangelogEntry
+			var rec changelog.Record
 			var nextIndex int64
-			getRename := func() *llapi.ChangelogEntry {
-				changelog := llapi.ChangelogOpen(harness.ClientMount(), false, nextIndex)
-				Ω(changelog).ShouldNot(BeNil())
-				for entry = changelog.GetNextLogEntry(); entry != nil; entry = changelog.GetNextLogEntry() {
-					if entry.TypeName == "RENME" {
-						return entry
+			h := handle.Create(changelogMdt)
+			getRename := func() changelog.Record {
+				err = h.OpenAt(nextIndex, false)
+				Ω(err).ShouldNot(HaveOccurred())
+				defer h.Close()
+
+				rec, err = h.NextRecord()
+				for err == nil {
+					if rec.Type() == "RENME" {
+						return rec
 					}
-					nextIndex = entry.Index + 1
+					nextIndex = rec.Index() + 1
+					rec, err = h.NextRecord()
 				}
-				changelog.Close()
 				return nil
 			}
 
 			Eventually(getRename, 5*time.Second, time.Second).ShouldNot(BeNil())
-			log.Debug(entry.String())
-			Expect(entry.Name).To(Equal(newFileName))
+			log.Debug(rec.String())
+			Expect(rec.Name()).To(Equal(newFileName))
 		})
 	})
 })
