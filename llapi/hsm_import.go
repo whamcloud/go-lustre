@@ -15,6 +15,8 @@ import (
 	"log"
 	"os"
 	"syscall"
+
+	"github.intel.com/hpdd/lustre"
 )
 
 var errStatError = errors.New("stat failure")
@@ -55,7 +57,7 @@ func HsmImport(
 	stripeOffset int,
 	stripeCount int,
 	stripePattern int,
-	poolName string) (*CFid, error) {
+	poolName string) (*lustre.Fid, error) {
 
 	var cfid C.lustre_fid
 
@@ -78,5 +80,5 @@ func HsmImport(
 	if rc < 0 {
 		return nil, err
 	}
-	return (*CFid)(&cfid), nil
+	return fromCFid(&cfid), nil
 }

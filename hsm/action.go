@@ -1,17 +1,28 @@
-package lustre
+package hsm
 
 import (
 	"errors"
 	"fmt"
 
 	"github.com/golang/glog"
+	"github.intel.com/hpdd/lustre"
+	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/llapi"
+)
+
+// Expose the internal constants for external users
+const (
+	NONE    = llapi.HsmActionNone
+	ARCHIVE = llapi.HsmActionArchive
+	RESTORE = llapi.HsmActionRestore
+	REMOVE  = llapi.HsmActionRemove
+	CANCEL  = llapi.HsmActionCancel
 )
 
 type (
 	// Coordinator receives HSM actions to execute.
 	Coordinator struct {
-		root RootDir
+		root fs.RootDir
 		hcp  *llapi.HsmCopytoolPrivate
 	}
 
@@ -43,7 +54,7 @@ func IoError(msg string) error {
 }
 
 // CoordinatorConnection opens a connection to the coordinator.
-func CoordinatorConnection(path RootDir, nonBlocking bool) (*Coordinator, error) {
+func CoordinatorConnection(path fs.RootDir, nonBlocking bool) (*Coordinator, error) {
 	var cdt = Coordinator{root: path}
 	var err error
 
@@ -112,8 +123,8 @@ type (
 		Progress(offset uint64, length uint64, totalLength uint64, flags int) error
 		End(offset uint64, length uint64, flags int, errval int) error
 		Action() llapi.HsmAction
-		Fid() Fid
-		DataFid() (Fid, error)
+		Fid() *lustre.Fid
+		DataFid() (*lustre.Fid, error)
 		Fd() (uintptr, error)
 		Offset() uint64
 		ArchiveID() uint
@@ -128,9 +139,9 @@ type (
 // this action.
 func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 	mdtIndex := -1
-	if ai.Action() == llapi.RESTORE && !isError {
+	if ai.Action() == RESTORE && !isError {
 		var err error
-		mdtIndex, err = GetMdt(ai.cdt.root, ai.Fid())
+		mdtIndex, err = fs.GetMdt(ai.cdt.root, ai.Fid())
 		if err != nil {
 
 			//Fixme...
@@ -170,8 +181,8 @@ func (ai *ActionItem) Action() llapi.HsmAction {
 // Fid returns the FID for the actual file for ths action.
 // This fid or xattrs on this file can be used as a key with
 // the HSM backend.
-func (ai *ActionItem) Fid() Fid {
-	return NewFid(&ai.hai.Fid)
+func (ai *ActionItem) Fid() *lustre.Fid {
+	return ai.hai.Fid
 }
 
 // FailImmediately completes the ActinoItem with given error.
@@ -215,18 +226,14 @@ func (ai *ActionItemHandle) Action() llapi.HsmAction {
 // Fid returns the FID for the actual file for ths action.
 // This fid or xattrs on this file can be used as a key with
 // the HSM backend.
-func (ai *ActionItemHandle) Fid() Fid {
-	return NewFid(&ai.hai.Fid)
+func (ai *ActionItemHandle) Fid() *lustre.Fid {
+	return ai.hai.Fid
 }
 
 // DataFid returns the FID of the data file.
 // This file should be used for all Lustre IO for archive and restore commands.
-func (ai *ActionItemHandle) DataFid() (Fid, error) {
-	cfid, err := llapi.HsmActionGetDataFid(ai.hcap)
-	if err != nil {
-		return nil, err
-	}
-	return NewFid(cfid), nil
+func (ai *ActionItemHandle) DataFid() (*lustre.Fid, error) {
+	return llapi.HsmActionGetDataFid(ai.hcap)
 }
 
 // Fd returns the file descriptor of the DataFid.

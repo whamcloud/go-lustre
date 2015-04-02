@@ -13,6 +13,8 @@ import "C"
 import (
 	"errors"
 	"unsafe"
+
+	"github.intel.com/hpdd/lustre"
 )
 
 type HsmCopytoolPrivate C.struct_hsm_copytool_private
@@ -29,7 +31,7 @@ type (
 	}
 	HsmActionItem struct {
 		Action HsmAction
-		Fid    CFid
+		Fid    *lustre.Fid
 		Extent *HsmExtent
 		Cookie uint64
 		Data   []byte
@@ -46,11 +48,11 @@ type HsmAction uint32
 
 // HSM Action constants
 const (
-	NONE    = HsmAction(C.HSMA_NONE)
-	ARCHIVE = HsmAction(C.HSMA_ARCHIVE)
-	RESTORE = HsmAction(C.HSMA_RESTORE)
-	REMOVE  = HsmAction(C.HSMA_REMOVE)
-	CANCEL  = HsmAction(C.HSMA_CANCEL)
+	HsmActionNone    = HsmAction(C.HSMA_NONE)
+	HsmActionArchive = HsmAction(C.HSMA_ARCHIVE)
+	HsmActionRestore = HsmAction(C.HSMA_RESTORE)
+	HsmActionRemove  = HsmAction(C.HSMA_REMOVE)
+	HsmActionCancel  = HsmAction(C.HSMA_CANCEL)
 )
 
 func (action HsmAction) String() string {
@@ -120,7 +122,7 @@ func HsmCopytoolRecv(hcp *HsmCopytoolPrivate) (*HsmActionList, error) {
 		item := HsmActionItem{
 			hai:    *hai,
 			Action: HsmAction(hai.hai_action),
-			Fid:    CFid(hai.hai_fid),
+			Fid:    fromCFid(&hai.hai_fid),
 			Extent: &HsmExtent{
 				Offset: uint64(hai.hai_extent.offset),
 				Length: uint64(hai.hai_extent.length),
@@ -197,13 +199,13 @@ func HsmActionEnd(hcap **HsmCopyActionPrivate, offset, length uint64, flags, err
 
 // HsmActionGetDataFid returns the fid that shoudl be used to restore data to.
 // It can also be used to copy data from for archiving.
-func HsmActionGetDataFid(hcap *HsmCopyActionPrivate) (*CFid, error) {
+func HsmActionGetDataFid(hcap *HsmCopyActionPrivate) (*lustre.Fid, error) {
 	var cfid C.lustre_fid
 	rc, err := C.llapi_hsm_action_get_dfid((*C.struct_hsm_copyaction_private)(hcap), &cfid)
 	if err := isError(rc, err); err != nil {
 		return nil, err
 	}
-	return (*CFid)(&cfid), nil
+	return fromCFid(&cfid), nil
 }
 
 // HsmActonGetFd returns filedescriptor of the data fid. The data fid
