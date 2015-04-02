@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"reflect"
 	"unsafe"
+
+	"github.intel.com/hpdd/lustre"
 )
 
 // HsmUserAction specifies an action for HsmRequest().
@@ -30,7 +32,7 @@ func (action HsmUserAction) String() string {
 
 // HsmRequest submits an HSM request for list of files
 // The max suported size of the fileList is about 50.
-func HsmRequest(r string, cmd HsmUserAction, archiveID uint, fids []*CFid) (int, error) {
+func HsmRequest(r string, cmd HsmUserAction, archiveID uint, fids []*lustre.Fid) (int, error) {
 	fileCount := len(fids)
 	if fileCount < 1 {
 		return 0, fmt.Errorf("Request must include at least 1 file!")
@@ -58,7 +60,7 @@ func HsmRequest(r string, cmd HsmUserAction, archiveID uint, fids []*CFid) (int,
 	for i, f := range fids {
 		userItems[i].hui_extent.offset = 0
 		userItems[i].hui_extent.length = C.__u64(^uint(0))
-		userItems[i].hui_fid = (C.struct_lu_fid)(*f)
+		userItems[i].hui_fid = *toCFid(f)
 		hur.hur_request.hr_itemcount++
 	}
 

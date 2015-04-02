@@ -1,7 +1,4 @@
-// Package lustre provides access to many of the functions avialable in liblustreapi.
-//
-// Currently, this includes the HSM Copytool API, managing Fids, and reading changelogs.
-package lustre
+package fs
 
 import (
 	"fmt"
@@ -13,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/status"
 )
@@ -77,18 +75,14 @@ func (m *mountDir) String() string {
 	return string(m.path)
 }
 
-func (m *mountDir) GetMdt(in Fid) (int, error) {
-	f, ok := in.(*fid)
-	if !ok {
-		return 0, fmt.Errorf("Not a C fid: %v\n", in)
-	}
+func (m *mountDir) GetMdt(in *lustre.Fid) (int, error) {
 	if !m.opened {
 		err := m.open()
 		if err != nil {
 			return 0, err
 		}
 	}
-	mdtIndex, err := llapi.GetMdtIndexbyFid(int(m.f.Fd()), f.cfid)
+	mdtIndex, err := llapi.GetMdtIndexByFid(int(m.f.Fd()), in)
 	if err != nil {
 		return 0, err
 	}
@@ -105,7 +99,8 @@ func getOpenMount(root RootDir) *mountDir {
 	return mnt
 }
 
-func GetMdt(root RootDir, f Fid) (int, error) {
+// GetMdt returns the MDT index for a given Fid
+func GetMdt(root RootDir, f *lustre.Fid) (int, error) {
 	mnt := getOpenMount(root)
 	return mnt.GetMdt(f)
 }
@@ -125,26 +120,26 @@ func (root RootDir) Path() string {
 	return string(root)
 }
 
-// FilesystemID should be a unique identifier for a filesystem. For now just use RootDir
-type FilesystemID RootDir
+// ID should be a unique identifier for a filesystem. For now just use RootDir
+type ID RootDir
 
-func (root FilesystemID) String() string {
+func (root ID) String() string {
 	return string(root)
 }
 
 // Path returns the path for the root
-func (root FilesystemID) Path() (string, error) {
+func (root ID) Path() (string, error) {
 	return string(root), nil
 }
 
 // GetID returns the filesystem's ID. For the moment, this is the root path, but in
 // the future it could be something more globally unique (uuid?).
-func GetID(p string) (FilesystemID, error) {
+func GetID(p string) (ID, error) {
 	r, err := MountRoot(p)
 	if err != nil {
-		return FilesystemID(r), err
+		return ID(r), err
 	}
-	return FilesystemID(r), nil
+	return ID(r), nil
 }
 
 // Determine if given directory is the one true magical DOT_LUSTRE directory.

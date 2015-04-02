@@ -6,14 +6,14 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"github.intel.com/hpdd/lustre"
+	"github.intel.com/hpdd/lustre/fs"
 )
 
 // Agent receives HSM action  from the Coordinator.
 type Agent interface {
 	// Actions is a channel for actions. Mutiple listeners can use this channel.
 	// The channel will be closed when the Agent is shutdown.
-	Actions() <-chan lustre.ActionRequest
+	Actions() <-chan ActionRequest
 
 	// Stop signals the agent to shutdown. It disconnects from the coordinator and
 	// in progress actions will fail.
@@ -21,13 +21,13 @@ type Agent interface {
 }
 
 type agent struct {
-	root    lustre.RootDir
+	root    fs.RootDir
 	stopFd  *os.File
-	actions <-chan lustre.ActionRequest
+	actions <-chan ActionRequest
 }
 
 // Start initializes an agent for the filesystem in root.
-func Start(root lustre.RootDir, done chan struct{}) (Agent, error) {
+func Start(root fs.RootDir, done chan struct{}) (Agent, error) {
 	agent := &agent{root: root}
 
 	// This pipe is used by Stop() to signal the action waiter goroutine.
@@ -53,7 +53,7 @@ func (agent *agent) Stop() {
 	agent.stopFd = nil
 }
 
-func (agent *agent) Actions() <-chan lustre.ActionRequest {
+func (agent *agent) Actions() <-chan ActionRequest {
 	return agent.actions
 }
 func getFd(f *os.File) int {
@@ -65,12 +65,12 @@ const EPOLLET = uint32(1) << 31
 
 func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 	var err error
-	cdt, err := lustre.CoordinatorConnection(agent.root, true)
+	cdt, err := CoordinatorConnection(agent.root, true)
 	if err != nil {
 		glog.Fatal(err)
 	}
 
-	ch := make(chan lustre.ActionRequest)
+	ch := make(chan ActionRequest)
 
 	go func() {
 		var events = make([]syscall.EpollEvent, 2)
@@ -95,7 +95,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 		}()
 
 		for {
-			var actions []lustre.ActionItem
+			var actions []ActionItem
 			nfds, err := syscall.EpollWait(epfd, events, -1)
 			if err != nil {
 				if err == syscall.Errno(syscall.EINTR) {
@@ -142,15 +142,15 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 
 // bufferedActionChannel buffers the input channel into an arbitrarily sized queue, and returns
 // the channel for consumers to read from.
-func bufferedActionChannel(done <-chan struct{}, in <-chan lustre.ActionRequest) <-chan lustre.ActionRequest {
-	var queue []lustre.ActionRequest
-	out := make(chan lustre.ActionRequest)
+func bufferedActionChannel(done <-chan struct{}, in <-chan ActionRequest) <-chan ActionRequest {
+	var queue []ActionRequest
+	out := make(chan ActionRequest)
 
 	go func() {
 		defer close(out)
 		for {
-			var send chan lustre.ActionRequest
-			var first lustre.ActionRequest
+			var send chan ActionRequest
+			var first ActionRequest
 
 			if len(queue) > 0 {
 				send = out
