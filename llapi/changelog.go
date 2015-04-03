@@ -20,7 +20,6 @@ import (
 	"unsafe"
 
 	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/changelog"
 )
 
 // HsmEvent is a convenience type to represent an HSM event reported
@@ -50,24 +49,12 @@ func (he *HsmEvent) String() string {
 	}
 }
 
-// ChangelogHandle represents a Lustre Changelog
-type ChangelogHandle struct {
-	open   bool
-	device string
-	priv   *byte
+type Changelog struct {
+	priv *byte
 }
 
-// Open sets up the Changelog for reading from the first available record
-func (h *ChangelogHandle) Open(follow bool) error {
-	return h.OpenAt(1, follow)
-}
-
-// OpenAt sets up the Changelog for reading from the specified record index
-func (h *ChangelogHandle) OpenAt(startRec int64, follow bool) error {
-	if h.open {
-		return nil
-	}
-
+func ChangelogStart(device string, startRec int64, follow bool) (*Changelog, error) {
+	cl := Changelog{}
 	// NB: CHANGELOG_FLAG_JOBID will be mandatory in future releases.
 	// CHANGELOG_FLAG_BLOCK seems to be ignored? Can we remove it?
 	flags := C.CHANGELOG_FLAG_BLOCK | C.CHANGELOG_FLAG_JOBID
@@ -79,41 +66,33 @@ func (h *ChangelogHandle) OpenAt(startRec int64, follow bool) error {
 		flags |= C.CHANGELOG_FLAG_FOLLOW
 	}
 
-	cDevice := C.CString(h.device)
+	cDevice := C.CString(device)
 	defer C.free(unsafe.Pointer(cDevice))
 
-	rc := C.llapi_changelog_start((*unsafe.Pointer)(unsafe.Pointer(&h.priv)),
+	rc := C.llapi_changelog_start((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)),
 		uint32(flags), cDevice, C.longlong(startRec))
 	if rc != 0 {
-		return fmt.Errorf("Got nonzero RC from llapi_changelog_start: %d", rc)
+		return nil, fmt.Errorf("Got nonzero RC from llapi_changelog_start: %d", rc)
 	}
 
-	h.open = true
-	return nil
+	return &cl, nil
 }
 
-// Close closes the Changelog handle
-func (h *ChangelogHandle) Close() error {
-	rc := C.llapi_changelog_fini((*unsafe.Pointer)(unsafe.Pointer(&h.priv)))
+func ChangelogFini(cl *Changelog) error {
+	rc := C.llapi_changelog_fini((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)))
 	if rc != 0 {
 		return fmt.Errorf("Got nonzero RC from llapi_changelog_fini: %d", rc)
 	}
 
-	h.open = false
-	h.priv = nil
+	cl.priv = nil
 	return nil
 }
 
-// NextRecord retrieves the next available record
-func (h *ChangelogHandle) NextRecord() (changelog.Record, error) {
-	if !h.open {
-		return nil, fmt.Errorf("NextRecord() called on closed handle")
-	}
-
+func ChangelogRecv(cl *Changelog) (*ChangelogRecord, error) {
 	var rec *C.struct_changelog_rec
 
 	// 0 is valid message, < 0 is error code, 1 is EOF
-	rc := C.llapi_changelog_recv(unsafe.Pointer(h.priv), &rec)
+	rc := C.llapi_changelog_recv(unsafe.Pointer(cl.priv), &rec)
 	if rc == 1 {
 		return nil, io.EOF
 	} else if rc != 0 {
@@ -127,10 +106,8 @@ func (h *ChangelogHandle) NextRecord() (changelog.Record, error) {
 	return r, nil
 }
 
-// Clear clears Changelog records for the specified token up to the supplied
-// end record index
-func (h *ChangelogHandle) Clear(token string, endRec int64) error {
-	cDevice := C.CString(h.device)
+func ChangelogClear(device string, token string, endRec int64) error {
+	cDevice := C.CString(device)
 	defer C.free(unsafe.Pointer(cDevice))
 	cToken := C.CString(token)
 	defer C.free(unsafe.Pointer(cToken))
@@ -142,17 +119,30 @@ func (h *ChangelogHandle) Clear(token string, endRec int64) error {
 	return nil
 }
 
-func (h *ChangelogHandle) String() string {
-	return h.device
-}
-
-// CreateChangelogHandle creates a handle for accessing Changelog records
-// on the specified MDT.
-func CreateChangelogHandle(device string) changelog.Handle {
-	return &ChangelogHandle{
-		device: device,
-	}
-}
+// Changelog Types
+const (
+	CL_MARK     = 0
+	CL_CREATE   = 1  /* namespace */
+	CL_MKDIR    = 2  /* namespace */
+	CL_HARDLINK = 3  /* namespace */
+	CL_SOFTLINK = 4  /* namespace */
+	CL_MKNOD    = 5  /* namespace */
+	CL_UNLINK   = 6  /* namespace */
+	CL_RMDIR    = 7  /* namespace */
+	CL_RENAME   = 8  /* namespace */
+	CL_EXT      = 9  /* namespace extended record (2nd half of rename) */
+	CL_OPEN     = 10 /* not currently used */
+	CL_CLOSE    = 11 /* may be written to log only with mtime change */
+	CL_LAYOUT   = 12 /* file layout/striping modified */
+	CL_TRUNC    = 13
+	CL_SETATTR  = 14
+	CL_XATTR    = 15
+	CL_HSM      = 16 /* HSM specific events, see flags */
+	CL_MTIME    = 17 /* Precedence: setattr > mtime > ctime > atime */
+	CL_CTIME    = 18
+	CL_ATIME    = 19
+	CL_LAST
+)
 
 // ChangelogRecord is a record in a Changelog
 type ChangelogRecord struct {
@@ -186,6 +176,11 @@ func (r *ChangelogRecord) Type() string {
 	return r.typeName
 }
 
+// Type returns the changelog record's type as a string
+func (r *ChangelogRecord) TypeCode() uint {
+	return r.rType
+}
+
 // Time returns the changelog record's time
 func (r *ChangelogRecord) Time() time.Time {
 	return r.time
@@ -214,6 +209,11 @@ func (r *ChangelogRecord) SourceParentFid() *lustre.Fid {
 // SourceName returns the source filename when a file is renamed
 func (r *ChangelogRecord) SourceName() string {
 	return r.sourceName
+}
+
+// IsRename is true if this record is a rename.
+func (r *ChangelogRecord) IsRename() bool {
+	return r.flags&C.CLF_RENAME == C.CLF_RENAME
 }
 
 // JobID returns the changelog record's Job ID information (if available)
@@ -309,15 +309,11 @@ func (r *ChangelogRecord) IsLastRename() (last, exists bool) {
 	return
 }
 
-func isRename(r *ChangelogRecord) bool {
-	return r.flags&C.CLF_RENAME == C.CLF_RENAME
-}
-
 func hasJobID(r *ChangelogRecord) bool {
 	return r.flags&C.CLF_JOBID == C.CLF_JOBID
 }
 
-func newRecord(cRec *C.struct_changelog_rec) (changelog.Record, error) {
+func newRecord(cRec *C.struct_changelog_rec) (*ChangelogRecord, error) {
 	tfid := C.changelog_rec_tfid(cRec)
 	record := &ChangelogRecord{
 		name:      C.GoString(C.changelog_rec_name(cRec)),
@@ -330,7 +326,7 @@ func newRecord(cRec *C.struct_changelog_rec) (changelog.Record, error) {
 		targetFid: fromCFid(&tfid),
 		parentFid: fromCFid(&cRec.cr_pfid),
 	}
-	if isRename(record) {
+	if record.IsRename() {
 		rename := C.changelog_rec_rename(cRec)
 		record.sourceName = C.GoString(C.changelog_rec_sname(cRec))
 		record.sourceFid = fromCFid(&rename.cr_sfid)

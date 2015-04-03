@@ -12,12 +12,16 @@ type (
 		Index() int64
 		Name() string
 		Type() string
+		TypeCode() uint
 		Time() time.Time
 		TargetFid() *lustre.Fid
 		ParentFid() *lustre.Fid
 		SourceName() string
 		SourceFid() *lustre.Fid
 		SourceParentFid() *lustre.Fid
+		IsRename() bool
+		IsLastRename() (bool, bool)
+		IsLastUnlink() (bool, bool)
 		JobID() string
 		String() string
 	}
