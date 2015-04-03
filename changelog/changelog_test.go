@@ -1,8 +1,8 @@
 package changelog_test
 
 import (
+	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/changelog"
-	"github.intel.com/hpdd/lustre/changelog/handle"
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/log"
 	"github.intel.com/hpdd/test/utils"
@@ -25,7 +25,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 	AfterEach(func() {
-		err := handle.Clear(changelogMdt, changelogUser, 0)
+		err := changelog.Clear(changelogMdt, changelogUser, 0)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		err = harness.DeregisterChangelogUser(changelogUser, changelogMdt)
@@ -42,10 +42,10 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 		It("should result in a CREAT changelog record.", func() {
-			var rec changelog.Record
+			var rec lustre.ChangelogRecord
 			var err error
-			Eventually(func() changelog.Record {
-				h := handle.Create(changelogMdt)
+			Eventually(func() lustre.ChangelogRecord {
+				h := changelog.CreateHandle(changelogMdt)
 				defer h.Close()
 
 				err = h.Open(false)
@@ -78,10 +78,10 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			log.Debug("Renamed %s -> %s", oldFile, testFile)
 
-			var rec changelog.Record
+			var rec lustre.ChangelogRecord
 			var nextIndex int64
-			h := handle.Create(changelogMdt)
-			getRename := func() changelog.Record {
+			h := changelog.CreateHandle(changelogMdt)
+			getRename := func() lustre.ChangelogRecord {
 				err = h.OpenAt(nextIndex, false)
 				Ω(err).ShouldNot(HaveOccurred())
 				defer h.Close()
@@ -91,13 +91,14 @@ var _ = Describe("When Changelogs are enabled", func() {
 					if rec.Type() == "RENME" {
 						return rec
 					}
-					nextIndex = rec.Index() + 1
 					rec, err = h.NextRecord()
 				}
 				return nil
 			}
 
 			Eventually(getRename, 5*time.Second, time.Second).ShouldNot(BeNil())
+			//f.Close()
+
 			log.Debug(rec.String())
 			Expect(rec.Name()).To(Equal(newFileName))
 		})
