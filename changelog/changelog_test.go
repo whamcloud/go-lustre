@@ -1,6 +1,9 @@
 package changelog_test
 
 import (
+	"strings"
+	"time"
+
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/changelog"
 	"github.intel.com/hpdd/test/harness"
@@ -11,8 +14,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"os"
-	"strings"
-	"time"
 )
 
 var _ = Describe("When Changelogs are enabled", func() {
@@ -79,28 +80,54 @@ var _ = Describe("When Changelogs are enabled", func() {
 			log.Debug("Renamed %s -> %s", oldFile, testFile)
 
 			var rec lustre.ChangelogRecord
-			var nextIndex int64
-			h := changelog.CreateHandle(changelogMdt)
+			f := changelog.CreateFollower(changelogMdt, 0)
+			defer f.Close()
 			getRename := func() lustre.ChangelogRecord {
-				err = h.OpenAt(nextIndex, false)
-				Ω(err).ShouldNot(HaveOccurred())
-				defer h.Close()
-
-				rec, err = h.NextRecord()
-				for err == nil {
+				rec, err = f.NextRecord()
+				for ; err == nil; rec, err = f.NextRecord() {
 					if rec.Type() == "RENME" {
 						return rec
 					}
-					rec, err = h.NextRecord()
 				}
 				return nil
 			}
 
 			Eventually(getRename, 5*time.Second, time.Second).ShouldNot(BeNil())
-			//f.Close()
 
 			log.Debug(rec.String())
 			Expect(rec.Name()).To(Equal(newFileName))
+		})
+	})
+	Describe("shutting down Follower", func() {
+		testFiles := []string{"a", "b", "c", "d", "e", "f"}
+		BeforeEach(func() {
+			for _, testFile := range testFiles {
+				utils.CreateTestFile(testFile)
+			}
+		})
+		AfterEach(func() {
+			for _, testFile := range testFiles {
+				err := os.Remove(utils.TestFilePath(testFile))
+				Ω(err).ShouldNot(HaveOccurred())
+			}
+		})
+		It("should stop processing records immediately.", func() {
+			f := changelog.CreateFollower(changelogMdt, 0)
+
+			for i := range testFiles {
+				if i == 4 {
+					f.Close()
+				}
+
+				rec, err := f.NextRecord()
+				if i < 4 {
+					Ω(err).ShouldNot(HaveOccurred())
+					log.Debug(rec.String())
+					Expect(rec.Name()).To(Equal(testFiles[i]))
+				} else {
+					Ω(err).Should(HaveOccurred())
+				}
+			}
 		})
 	})
 })

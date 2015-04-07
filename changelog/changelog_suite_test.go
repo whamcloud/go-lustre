@@ -26,6 +26,6 @@ func TestLustre(t *testing.T) {
 	})
 
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "llapi Suite")
+	RunSpecs(t, "Changelog Suite")
 	fmt.Println()
 }

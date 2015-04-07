@@ -2,6 +2,8 @@ package changelog
 
 import (
 	"fmt"
+	"io"
+	"time"
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/llapi"
@@ -74,12 +76,6 @@ func (h *changelogHandle) String() string {
 	return h.device
 }
 
-/*
- * FIXME: This implementation is racy. When run with the race detector
- * enabled, it flags racy access to the handle.open bool. Plus, it doesn't
- * return all records as expected. It used to work before everything got
- * shuffled around, so leaving this here as a TODO.
-
 // Follower is a Lustre Changelog follower. It provides a work-around
 // for the broken CHANGELOG_FLAG_FOLLOW functionality in liblustreapi.
 // If that is ever fixed, then it should be possible to just call
@@ -88,12 +84,14 @@ type Follower struct {
 	handle    lustre.ChangelogHandle
 	records   chan lustre.ChangelogRecord
 	err       chan error
+	done      chan struct{}
 	nextIndex int64
 }
 
-// Close calls Close() on the wrapped Handle.
-func (f *Follower) Close() error {
-	return f.handle.Close()
+// Close signals that the Follower should close the wrapped Handle and
+// stop processing records.
+func (f *Follower) Close() {
+	close(f.done)
 }
 
 // Follow opens the wrapped Handle at the first available index.
@@ -104,8 +102,6 @@ func (f *Follower) Follow() {
 // FollowFrom opens the wrapped Handle at the specified index.
 func (f *Follower) FollowFrom(startRec int64) {
 	f.nextIndex = startRec
-	records := make(chan lustre.ChangelogRecord, 0)
-	f.records = records
 
 	go func(h lustre.ChangelogHandle) {
 		for {
@@ -115,10 +111,14 @@ func (f *Follower) FollowFrom(startRec int64) {
 			}
 
 			r, err := h.NextRecord()
-			for err == nil {
-				records <- r
-				f.nextIndex = r.Index() + 1
-				r, err = h.NextRecord()
+			for ; err == nil; r, err = h.NextRecord() {
+				select {
+				case <-f.done:
+					h.Close()
+					return
+				case f.records <- r:
+					f.nextIndex = r.Index() + 1
+				}
 			}
 			if err != io.EOF {
 				f.err <- err
@@ -140,13 +140,18 @@ func (f *Follower) NextRecord() (lustre.ChangelogRecord, error) {
 		return r, nil
 	case err := <-f.err:
 		return nil, err
+	case <-f.done:
+		return nil, io.EOF
 	}
 }
 
 // FollowHandle takes a Handle and wraps it with a Follower object.
 func FollowHandle(h lustre.ChangelogHandle, startRec int64) *Follower {
 	f := &Follower{
-		handle: h,
+		handle:  h,
+		records: make(chan lustre.ChangelogRecord),
+		done:    make(chan struct{}),
+		err:     make(chan error),
 	}
 
 	f.FollowFrom(startRec)
@@ -159,4 +164,3 @@ func CreateFollower(device string, startRec int64) *Follower {
 	h := CreateHandle(device)
 	return FollowHandle(h, startRec)
 }
-*/
