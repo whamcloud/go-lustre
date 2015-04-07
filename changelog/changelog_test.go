@@ -1,19 +1,18 @@
 package changelog_test
 
 import (
+	"os"
 	"strings"
 	"time"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/changelog"
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/log"
 	"github.intel.com/hpdd/test/utils"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
-	"os"
 )
 
 var _ = Describe("When Changelogs are enabled", func() {
@@ -130,4 +129,40 @@ var _ = Describe("When Changelogs are enabled", func() {
 			}
 		})
 	})
+	Describe("Follower should keep reading when new CLs are available", func() {
+		testFiles := []string{"a", "b", "c", "d", "e", "f"}
+		BeforeEach(func() {
+			for _, testFile := range testFiles[:len(testFiles)-1] {
+				utils.CreateTestFile(testFile)
+			}
+		})
+		AfterEach(func() {
+			for _, testFile := range testFiles {
+				err := os.Remove(utils.TestFilePath(testFile))
+				Ω(err).ShouldNot(HaveOccurred())
+			}
+		})
+		It("and should block until a new record is available.", func() {
+			f := changelog.CreateFollower(changelogMdt, 0)
+			defer f.Close()
+
+			for i := range testFiles[:len(testFiles)-1] {
+				rec, err := f.NextRecord()
+				Ω(err).ShouldNot(HaveOccurred())
+				log.Debug(rec.String())
+				Expect(rec.Name()).To(Equal(testFiles[i]))
+			}
+
+			lastIdx := len(testFiles) - 1
+			go func() {
+				time.Sleep(1 * time.Second)
+				utils.CreateTestFile(testFiles[lastIdx])
+			}()
+
+			rec, err := f.NextRecord()
+			Ω(err).ShouldNot(HaveOccurred())
+			Expect(rec.Name()).To(Equal(testFiles[lastIdx]))
+		})
+	})
+
 })
