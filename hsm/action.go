@@ -29,8 +29,8 @@ type (
 	// ActionItem is one action to perform on specified file.
 	ActionItem struct {
 		cdt       *Coordinator
-		hai       *llapi.HsmActionItem
 		hcap      *llapi.HsmCopyActionPrivate
+		hai       llapi.HsmActionItem
 		halFlags  uint64
 		archiveID uint
 	}
@@ -88,7 +88,7 @@ func (cdt *Coordinator) Recv() ([]ActionItem, error) {
 			halFlags:  actionList.Flags,
 			archiveID: actionList.ArchiveID,
 			cdt:       cdt,
-			hai:       &hai,
+			hai:       hai,
 		}
 		items[i] = item
 	}
@@ -124,6 +124,7 @@ type (
 		End(offset uint64, length uint64, flags int, errval int) error
 		Action() llapi.HsmAction
 		Fid() *lustre.Fid
+		Cookie() uint64
 		DataFid() (*lustre.Fid, error)
 		Fd() (uintptr, error)
 		Offset() uint64
@@ -151,7 +152,7 @@ func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 	var err error
 	ai.hcap, err = llapi.HsmActionBegin(
 		ai.cdt.hcp,
-		ai.hai,
+		&ai.hai,
 		mdtIndex,
 		openFlags,
 		isError)
@@ -228,6 +229,11 @@ func (ai *ActionItemHandle) Action() llapi.HsmAction {
 // the HSM backend.
 func (ai *ActionItemHandle) Fid() *lustre.Fid {
 	return ai.hai.Fid
+}
+
+// Cookie returns the action identifier.
+func (ai *ActionItemHandle) Cookie() uint64 {
+	return ai.hai.Cookie
 }
 
 // DataFid returns the FID of the data file.

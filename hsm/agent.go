@@ -1,7 +1,7 @@
 package hsm
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"syscall"
 
@@ -67,7 +67,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 	var err error
 	cdt, err := CoordinatorConnection(agent.root, true)
 	if err != nil {
-		glog.Fatal(err)
+		return fmt.Errorf("%s: %s", agent.root, err)
 	}
 
 	ch := make(chan ActionRequest)
@@ -77,7 +77,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 		var ev syscall.EpollEvent
 		epfd, err := syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
 		if err != nil {
-			log.Fatal(err)
+			glog.Fatal(err)
 		}
 		ev.Fd = int32(getFd(r))
 		ev.Events = syscall.EPOLLIN | EPOLLET
@@ -101,7 +101,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 				if err == syscall.Errno(syscall.EINTR) {
 					continue
 				}
-				log.Fatal(err)
+				glog.Fatal(err)
 			}
 
 			for n := 0; n < nfds; n++ {
