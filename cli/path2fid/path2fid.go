@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.intel.com/hpdd/lustre/fs"
+	"github.intel.com/hpdd/lustre/luser"
 )
 
 var (
@@ -37,7 +37,7 @@ func main() {
 	flag.Parse()
 
 	for _, name := range flag.Args() {
-		fid, err := fs.LookupFid(name)
+		fid, err := luser.GetFid(name)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
 			continue

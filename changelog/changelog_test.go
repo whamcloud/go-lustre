@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/changelog"
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/log"
@@ -42,9 +41,9 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 		It("should result in a CREAT changelog record.", func() {
-			var rec lustre.ChangelogRecord
+			var rec changelog.Record
 			var err error
-			Eventually(func() lustre.ChangelogRecord {
+			Eventually(func() changelog.Record {
 				h := changelog.CreateHandle(changelogMdt)
 				defer h.Close()
 
@@ -78,10 +77,10 @@ var _ = Describe("When Changelogs are enabled", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			log.Debug("Renamed %s -> %s", oldFile, testFile)
 
-			var rec lustre.ChangelogRecord
+			var rec changelog.Record
 			f := changelog.CreateFollower(changelogMdt, 0)
 			defer f.Close()
-			getRename := func() lustre.ChangelogRecord {
+			getRename := func() changelog.Record {
 				rec, err = f.NextRecord()
 				for ; err == nil; rec, err = f.NextRecord() {
 					if rec.Type() == "RENME" {

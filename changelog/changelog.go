@@ -9,9 +9,44 @@ import (
 	"github.intel.com/hpdd/lustre/llapi"
 )
 
+type (
+	// ChangelogRecord represents a Lustre Changelog record
+	Record interface {
+		Index() int64
+		Name() string
+		Type() string
+		TypeCode() uint
+		Time() time.Time
+		TargetFid() *lustre.Fid
+		ParentFid() *lustre.Fid
+		SourceName() string
+		SourceFid() *lustre.Fid
+		SourceParentFid() *lustre.Fid
+		IsRename() bool
+		IsLastRename() (bool, bool)
+		IsLastUnlink() (bool, bool)
+		JobID() string
+		String() string
+	}
+	// ChangelogHandle represents an interface to a Lustre Changelog
+	Handle interface {
+		Open(bool) error
+		OpenAt(int64, bool) error
+		Close() error
+		NextRecord() (Record, error)
+		Clear(string, int64) error
+		String() string
+	}
+
+	// ChangelogRecordIterator iterates over Records
+	RecordIterator interface {
+		NextRecord() (Record, error)
+	}
+)
+
 // CreateHandle returns a Handle for accessing Changelog records
 // on a given MDT.
-func CreateHandle(device string) lustre.ChangelogHandle {
+func CreateHandle(device string) Handle {
 	return &changelogHandle{
 		device: device,
 	}
@@ -59,7 +94,7 @@ func (h *changelogHandle) Close() error {
 }
 
 // NextRecord retrieves the next available record
-func (h *changelogHandle) NextRecord() (lustre.ChangelogRecord, error) {
+func (h *changelogHandle) NextRecord() (Record, error) {
 	if !h.open {
 		return nil, fmt.Errorf("NextRecord() called on closed handle")
 	}
@@ -81,8 +116,8 @@ func (h *changelogHandle) String() string {
 // If that is ever fixed, then it should be possible to just call
 // NextRecord() in a blocking loop directly on the handle.
 type Follower struct {
-	handle    lustre.ChangelogHandle
-	records   chan lustre.ChangelogRecord
+	handle    Handle
+	records   chan Record
 	err       chan error
 	done      chan struct{}
 	nextIndex int64
@@ -103,7 +138,7 @@ func (f *Follower) Follow() {
 func (f *Follower) FollowFrom(startRec int64) {
 	f.nextIndex = startRec
 
-	go func(h lustre.ChangelogHandle) {
+	go func(h Handle) {
 		for {
 			if err := h.OpenAt(f.nextIndex, false); err != nil {
 				f.err <- err
@@ -134,7 +169,7 @@ func (f *Follower) FollowFrom(startRec int64) {
 
 // NextRecord blocks until the next record is available or an error was
 // encountered by the follower goroutine.
-func (f *Follower) NextRecord() (lustre.ChangelogRecord, error) {
+func (f *Follower) NextRecord() (Record, error) {
 	select {
 	case r := <-f.records:
 		return r, nil
@@ -146,10 +181,10 @@ func (f *Follower) NextRecord() (lustre.ChangelogRecord, error) {
 }
 
 // FollowHandle takes a Handle and wraps it with a Follower object.
-func FollowHandle(h lustre.ChangelogHandle, startRec int64) *Follower {
+func FollowHandle(h Handle, startRec int64) *Follower {
 	f := &Follower{
 		handle:  h,
-		records: make(chan lustre.ChangelogRecord),
+		records: make(chan Record),
 		done:    make(chan struct{}),
 		err:     make(chan error),
 	}

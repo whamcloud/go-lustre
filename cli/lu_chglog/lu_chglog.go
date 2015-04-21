@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/changelog"
 	"github.intel.com/hpdd/lustre/fs"
 )
@@ -20,12 +19,12 @@ func init() {
 	flag.BoolVar(&printTimestamp, "ts", false, "display record time stamps")
 }
 
-type scannerFunc func(h lustre.ChangelogHandle, next int64) int64
+type scannerFunc func(h changelog.Handle, next int64) int64
 
 func getAsyncLogger(wg *sync.WaitGroup, logger scannerFunc) scannerFunc {
 	wg.Add(1)
 	if follow {
-		return func(h lustre.ChangelogHandle, nextIndex int64) int64 {
+		return func(h changelog.Handle, nextIndex int64) int64 {
 			defer wg.Done()
 			for follow {
 				nextIndex = logger(h, nextIndex)
@@ -34,7 +33,7 @@ func getAsyncLogger(wg *sync.WaitGroup, logger scannerFunc) scannerFunc {
 			return nextIndex
 		}
 	}
-	return func(h lustre.ChangelogHandle, nextIndex int64) int64 {
+	return func(h changelog.Handle, nextIndex int64) int64 {
 		defer wg.Done()
 		return logger(h, nextIndex)
 	}
@@ -63,7 +62,7 @@ func main() {
 	var wg sync.WaitGroup
 	flag.Parse()
 
-	logger := func(h lustre.ChangelogHandle, nextIndex int64) int64 {
+	logger := func(h changelog.Handle, nextIndex int64) int64 {
 		err := h.OpenAt(nextIndex, false)
 		if err != nil {
 			panic("mnt: Failed to open changelog")

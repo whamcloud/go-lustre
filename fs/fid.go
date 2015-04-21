@@ -5,11 +5,28 @@ import (
 	"os"
 	"path"
 
+	"github.com/golang/glog"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/llapi"
+	"github.intel.com/hpdd/lustre/luser"
 )
 
 // LookupFid returns the Fid for the given file or an error.
+func LookupFid(path string) (*lustre.Fid, error) {
+	fid, err := luser.GetFid(path)
+	if err != nil {
+		// XXX Be noisy for testing, but this fallback shouldn't be required
+		glog.Errorf("%v: %v", path, err)
+		fid, err = llapi.Path2Fid(path)
+		if err != nil {
+			return nil, fmt.Errorf("%s: fid not found (%s)", path, err.Error())
+		}
+	}
+	return fid, nil
+}
+
+/*
+Slow version...
 func LookupFid(path string) (*lustre.Fid, error) {
 	fid, err := llapi.Path2Fid(path)
 	if err != nil {
@@ -17,6 +34,7 @@ func LookupFid(path string) (*lustre.Fid, error) {
 	}
 	return fid, nil
 }
+*/
 
 // FidPath returns the open-by-fid path for a fid.
 func FidPath(mnt RootDir, f *lustre.Fid) string {

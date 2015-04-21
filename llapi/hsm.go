@@ -110,7 +110,7 @@ func HsmCopytoolRecv(hcp *HsmCopytoolPrivate) (*HsmActionList, error) {
 		return nil, err
 	}
 	var actionList HsmActionList
-	actionList.Items = make([]HsmActionItem, 0, int(hal.hal_count))
+	actionList.Items = make([]HsmActionItem, int(hal.hal_count))
 	actionList.ArchiveID = uint(hal.hal_archive_id)
 	actionList.Flags = uint64(hal.hal_flags)
 	actionList.Version = uint32(hal.hal_version)
@@ -130,7 +130,7 @@ func HsmCopytoolRecv(hcp *HsmCopytoolPrivate) (*HsmActionList, error) {
 			Cookie: uint64(hai.hai_cookie),
 			Data:   fetchData(hai),
 		}
-		actionList.Items = append(actionList.Items, item)
+		actionList.Items[i] = item
 		hai = C.hai_next(hai)
 	}
 	return &actionList, nil
@@ -144,14 +144,15 @@ func fetchData(hai *C.struct_hsm_action_item) []byte {
 // HsmActionBegin initializes the action so it can be processed by the copytool.
 func HsmActionBegin(hcp *HsmCopytoolPrivate, hai *HsmActionItem, mdtIndex int, openFlags int, isErr bool) (*HsmCopyActionPrivate, error) {
 	var hcap *C.struct_hsm_copyaction_private
-	rc, err := C.llapi_hsm_action_begin(
+	rc, _ := C.llapi_hsm_action_begin(
 		&hcap,
 		(*C.struct_hsm_copytool_private)(hcp),
 		&hai.hai,
 		C.int(mdtIndex),
 		C.int(openFlags),
 		C.bool(isErr))
-	if err := isError(rc, err); err != nil {
+	// Ignore errno set by llapi_hsm_action_begin
+	if err := isError(rc, nil); err != nil {
 		return nil, err
 	}
 	return (*HsmCopyActionPrivate)(hcap), nil

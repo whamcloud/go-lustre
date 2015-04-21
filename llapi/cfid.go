@@ -33,6 +33,7 @@ func toCFid(fid *lustre.Fid) *C.struct_lu_fid {
 }
 
 // Path2Fid returns the Fid for the given path or an error.
+
 func Path2Fid(path string) (*lustre.Fid, error) {
 	cfid := &C.lustre_fid{}
 
