@@ -24,11 +24,8 @@ var _ = Describe("When Changelogs are enabled", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 	AfterEach(func() {
-		err := changelog.Clear(changelogMdt, changelogUser, 0)
-		Ω(err).ShouldNot(HaveOccurred())
-
-		err = harness.DeregisterChangelogUser(changelogUser, changelogMdt)
-		Ω(err).ShouldNot(HaveOccurred())
+		Ω(changelog.Clear(changelogMdt, changelogUser, 0)).Should(Succeed())
+		Ω(harness.DeregisterChangelogUser(changelogUser, changelogMdt)).Should(Succeed())
 	})
 	Describe("creating a file", func() {
 		fileName := "new-file"
@@ -37,8 +34,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 			testFile = utils.CreateTestFile(fileName)
 		})
 		AfterEach(func() {
-			err := os.Remove(testFile)
-			Ω(err).ShouldNot(HaveOccurred())
+			Ω(os.Remove(testFile)).Should(Succeed())
 		})
 		It("should result in a CREAT changelog record.", func() {
 			var rec changelog.Record
@@ -47,8 +43,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 				h := changelog.CreateHandle(changelogMdt)
 				defer h.Close()
 
-				err = h.Open(false)
-				Ω(err).ShouldNot(HaveOccurred())
+				Ω(h.Open(false)).Should(Succeed())
 
 				rec, err = h.NextRecord()
 				return rec
@@ -67,8 +62,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 			testFile = utils.CreateTestFile(fileName)
 		})
 		AfterEach(func() {
-			err := os.Remove(testFile)
-			Ω(err).ShouldNot(HaveOccurred())
+			Ω(os.Remove(testFile)).Should(Succeed())
 		})
 		It("should result in a RENME changelog entry.", func() {
 			oldFile := testFile
@@ -105,8 +99,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 		})
 		AfterEach(func() {
 			for _, testFile := range testFiles {
-				err := os.Remove(utils.TestFilePath(testFile))
-				Ω(err).ShouldNot(HaveOccurred())
+				Ω(os.Remove(utils.TestFilePath(testFile))).Should(Succeed())
 			}
 		})
 		It("should stop processing records immediately.", func() {
@@ -137,8 +130,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 		})
 		AfterEach(func() {
 			for _, testFile := range testFiles {
-				err := os.Remove(utils.TestFilePath(testFile))
-				Ω(err).ShouldNot(HaveOccurred())
+				Ω(os.Remove(utils.TestFilePath(testFile))).Should(Succeed())
 			}
 		})
 		It("and should block until a new record is available.", func() {

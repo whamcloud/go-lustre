@@ -6,6 +6,7 @@ import (
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/test/harness"
+	"github.intel.com/hpdd/test/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -15,18 +16,12 @@ var _ = Describe("In the Lustre API functions,", func() {
 	testFiles := []string{"test1", "test2", "test3"}
 	BeforeEach(func() {
 		for _, file := range testFiles {
-			f, err := os.Create(path.Join(harness.ClientMount(), file))
-			if err != nil {
-				panic(err)
-			}
-			f.Close()
+			utils.CreateTestFile(file)
 		}
 	})
 	AfterEach(func() {
 		for _, file := range testFiles {
-			if err := os.Remove(path.Join(harness.ClientMount(), file)); err != nil {
-				panic(err)
-			}
+			Expect(os.Remove(utils.TestFilePath(file))).To(Succeed())
 		}
 	})
 
@@ -48,17 +43,11 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountRoot()", func() {
 		It("should not fail, given a valid path.", func() {
-			mnt, err := fs.MountRoot(harness.ClientMount())
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Expect(string(mnt)).To(Equal(harness.ClientMount()))
+			Expect(fs.MountRoot(harness.ClientMount())).To(BeEquivalentTo(harness.ClientMount()))
 		})
 
 		It("should not fail, given a valid file in lustre", func() {
-			mnt, err := fs.MountRoot(path.Join(harness.ClientMount(), testFiles[0]))
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Expect(string(mnt)).To(Equal(harness.ClientMount()))
+			Expect(fs.MountRoot(utils.TestFilePath(testFiles[0]))).To(BeEquivalentTo(harness.ClientMount()))
 		})
 
 		It("should fail, given a non-Lustre path.", func() {
@@ -92,10 +81,7 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("GetID()", func() {
 		It("should return the fs ID, given a valid mount.", func() {
-			id, err := fs.GetID(harness.ClientMount())
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Expect(id).To(Equal(harness.FsID()))
+			Expect(fs.GetID(harness.ClientMount())).To(Equal(harness.FsID()))
 		})
 	})
 

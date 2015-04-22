@@ -28,14 +28,12 @@ var _ = Describe("In the FID Utility Library", func() {
 			testFile.Close()
 		})
 		AfterEach(func() {
-			os.Remove(testFile.Name())
+			Ω(os.Remove(testFile.Name())).Should(Succeed())
 		})
 
 		Describe("LookupFid()", func() {
 			It("should return a valid FID, given a valid path.", func() {
-				fid, err := fs.LookupFid(testFile.Name())
-				Ω(err).ShouldNot(HaveOccurred())
-				Expect(fid).ToNot(BeNil())
+				Expect(fs.LookupFid(testFile.Name())).ToNot(BeNil())
 			})
 
 			It("should return an error, given an invalid path.", func() {
