@@ -9,7 +9,8 @@ import "C"
 import "unsafe"
 
 const (
-	RAID0 = uint64(C.LLAPI_LAYOUT_RAID0)
+	DEFAULT = uint64(C.LLAPI_LAYOUT_DEFAULT)
+	RAID0   = uint64(C.LLAPI_LAYOUT_RAID0)
 )
 
 type Layout struct {

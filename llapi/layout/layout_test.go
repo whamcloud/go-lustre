@@ -111,6 +111,16 @@ var _ = Describe("In the layout library", func() {
 				// Expect(l.OstIndex(0)).To(BeEquivalentTo(100))
 			})
 
+			It("Set stripe pattern to DEFAULT.", func() {
+				l := layout.New()
+				Expect(l).ToNot(BeNil())
+				defer l.Free()
+
+				//TODO: LU-6589 this shoudln't fail, so shoudn't be NotTo
+				Expect(l.PatternSet(layout.DEFAULT)).NotTo(Succeed())
+				// Expect(l.Pattern()).To(Equal(layout.DEFAULT))
+			})
+
 			It("Set stripe pattern to RAID0.", func() {
 				l := layout.New()
 				Expect(l).ToNot(BeNil())
