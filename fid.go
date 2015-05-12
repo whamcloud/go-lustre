@@ -30,10 +30,14 @@ func (f *Fid) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + f.String() + `"`), nil
 }
 
-// UnMarshalJSON converts fid string to Fid.
-func (f *Fid) UnMarshalJSON(b []byte) (err error) {
+// UnmarshalJSON converts fid string to Fid.
+func (f *Fid) UnmarshalJSON(b []byte) (err error) {
+	// trim the '"'
+	if b[0] == '"' {
+		b = b[1 : len(b)-1]
+	}
 	newFid, err := ParseFid(string(b))
-	f = newFid
+	*f = *newFid
 	return err
 }
 
