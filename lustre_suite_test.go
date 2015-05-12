@@ -1,11 +1,11 @@
 package lustre_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/log"
+	"github.intel.com/hpdd/test/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -26,6 +26,5 @@ func TestLustre(t *testing.T) {
 	})
 
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Lustre Suite")
-	fmt.Println()
+	utils.RunSpecs(t, "Lustre Suite")
 }

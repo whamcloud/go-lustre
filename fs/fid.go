@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/golang/glog"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/luser"
@@ -16,7 +15,7 @@ func LookupFid(path string) (*lustre.Fid, error) {
 	fid, err := luser.GetFid(path)
 	if err != nil {
 		// XXX Be noisy for testing, but this fallback shouldn't be required
-		glog.Errorf("%v: %v", path, err)
+		//glog.Errorf("%v: %v", path, err)
 		fid, err = llapi.Path2Fid(path)
 		if err != nil {
 			return nil, fmt.Errorf("%s: fid not found (%s)", path, err.Error())
