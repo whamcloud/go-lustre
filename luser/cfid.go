@@ -1,4 +1,4 @@
-// Package luser users lustre interfaces exported to usersapce directly, instead of using the liblustreapi.a library.
+// Package luser uses lustre interfaces exported to usersapce directly, instead of using the liblustreapi.a library.
 //
 package luser
 

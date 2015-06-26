@@ -6,11 +6,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"strings"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/status"
 )
+
+func nidName(nid string) string {
+	parts := strings.Split(nid, "@")
+	name, err := net.LookupAddr(parts[0])
+	if err == nil && len(name) > 0 {
+		parts[0] = name[0]
+	}
+	return strings.Join(parts, "@")
+}
 
 func mdcStatus(c *status.LustreClient, mdc string) {
 	path := c.ClientPath("mdc", mdc)
@@ -18,7 +28,7 @@ func mdcStatus(c *status.LustreClient, mdc string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("  %s: %s %s\n", mdc, imp.Connection.CurrentConnection, imp.State)
+	fmt.Printf("  %s % 15s % 8s\n", mdc, nidName(imp.Connection.CurrentConnection), imp.State)
 }
 
 func oscStatus(c *status.LustreClient, osc string) string {
@@ -27,7 +37,7 @@ func oscStatus(c *status.LustreClient, osc string) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("  %s: %s %s %v\n", osc, imp.Connection.CurrentConnection, imp.State,
+	fmt.Printf("  %s % 15s % 8s %v\n", osc, nidName(imp.Connection.CurrentConnection), imp.State,
 		imp.Averages.MegabytesPerSec)
 	return ""
 }
