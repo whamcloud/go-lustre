@@ -10,6 +10,8 @@ import (
 type Nid interface {
 	String() string
 	Driver() string
+
+	MarshalJSON() ([]byte, error)
 }
 
 func NidFromString(inString string) (Nid, error) {

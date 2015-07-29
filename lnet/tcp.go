@@ -1,6 +1,7 @@
 package lnet
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 )
@@ -20,6 +21,10 @@ func (t *TcpNid) Address() string {
 
 func (t *TcpNid) Driver() string {
 	return "tcp"
+}
+
+func (t *TcpNid) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
 }
 
 func newTcpNid(address string, driverInstance int) (Nid, error) {
