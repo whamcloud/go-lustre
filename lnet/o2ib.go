@@ -5,29 +5,30 @@ import (
 	"net"
 )
 
-type TcpNid struct {
+type IbNid struct {
 	IPAddress      *net.IP
 	driverInstance int
 }
 
-func (t *TcpNid) Address() interface{} {
-	return t.IPAddress
+func (t *IbNid) Address() interface{} {
+	// Not a intended to be used as real IP address, so just return as string
+	return t.IPAddress.String()
 }
 
-func (t *TcpNid) Driver() string {
-	return "tcp"
+func (t *IbNid) Driver() string {
+	return "o2ib"
 }
 
-func (t *TcpNid) LNet() string {
+func (t *IbNid) LNet() string {
 	return fmt.Sprintf("%s%d", t.Driver(), t.driverInstance)
 }
 
-func newTcpNid(address string, driverInstance int) (*TcpNid, error) {
+func newIbNid(address string, driverInstance int) (*IbNid, error) {
 	ip := net.ParseIP(address)
 	if ip == nil {
 		return nil, fmt.Errorf("%q is not a valid IP address", address)
 	}
-	return &TcpNid{
+	return &IbNid{
 		IPAddress:      &ip,
 		driverInstance: driverInstance,
 	}, nil
