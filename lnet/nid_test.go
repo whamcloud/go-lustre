@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.intel.com/hpdd/ce-tools/lib/tu"
 	"github.intel.com/hpdd/ce-tools/resources/lustre/lnet"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -45,7 +46,7 @@ func TestNidFunctions(t *testing.T) {
 		for _, tc := range tests {
 			Convey(tc.in, func() {
 				n, err := lnet.NidFromString(tc.in)
-				So(err2str(err), ShouldEqual, tc.err)
+				So(tu.Err2str(err), ShouldEqual, tc.err)
 
 				if n != nil {
 					So(n.String(), ShouldEqual, tc.out)
@@ -87,7 +88,7 @@ func TestMarshalNid(t *testing.T) {
 					t.Fatal(err)
 				}
 				j, err := json.Marshal(n)
-				So(err2str(err), ShouldEqual, tc.err)
+				So(tu.Err2str(err), ShouldEqual, tc.err)
 
 				if j != nil {
 					So(string(j), ShouldEqual, tc.out)
@@ -101,7 +102,7 @@ func TestMarshalNid(t *testing.T) {
 			Convey(tc.out, func() {
 				var nid lnet.Nid
 				err := json.Unmarshal([]byte(tc.out), &nid)
-				So(err2str(err), ShouldEqual, tc.err)
+				So(tu.Err2str(err), ShouldEqual, tc.err)
 
 				if err == nil {
 					So(nid.String(), ShouldEqual, tc.in)
@@ -109,11 +110,4 @@ func TestMarshalNid(t *testing.T) {
 			})
 		}
 	})
-}
-
-func err2str(err error) string {
-	if err != nil {
-		return err.Error()
-	}
-	return ""
 }
