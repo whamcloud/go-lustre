@@ -5,29 +5,39 @@ import (
 	"net"
 )
 
-type TcpNid struct {
+const tcpDriverString = "tcp"
+
+func init() {
+	drivers[tcpDriverString] = newTCPNid
+}
+
+// TCPNid is a TCP LND NID
+type TCPNid struct {
 	IPAddress      *net.IP
 	driverInstance int
 }
 
-func (t *TcpNid) Address() interface{} {
+// Address returns the underlying *net.IP
+func (t *TCPNid) Address() interface{} {
 	return t.IPAddress
 }
 
-func (t *TcpNid) Driver() string {
-	return "tcp"
+// Driver returns the LND name
+func (t *TCPNid) Driver() string {
+	return tcpDriverString
 }
 
-func (t *TcpNid) LNet() string {
+// LNet returns a string representation of the driver name and instance
+func (t *TCPNid) LNet() string {
 	return fmt.Sprintf("%s%d", t.Driver(), t.driverInstance)
 }
 
-func newTcpNid(address string, driverInstance int) (*TcpNid, error) {
+func newTCPNid(address string, driverInstance int) (RawNid, error) {
 	ip := net.ParseIP(address)
 	if ip == nil {
 		return nil, fmt.Errorf("%q is not a valid IP address", address)
 	}
-	return &TcpNid{
+	return &TCPNid{
 		IPAddress:      &ip,
 		driverInstance: driverInstance,
 	}, nil

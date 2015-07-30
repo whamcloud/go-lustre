@@ -5,28 +5,40 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
-type RawNid interface {
-	Driver() string
-	Address() interface{}
-	LNet() string
-}
+// Each driver implementation needs to register itself in this map.
+var drivers = make(map[string]newNidFunc)
 
-type Nid struct {
-	raw RawNid
-}
+type (
+	newNidFunc func(string, int) (RawNid, error)
 
+	// RawNid represents the actual Nid implementation (tcp, o2ib, etc)
+	RawNid interface {
+		Driver() string
+		Address() interface{}
+		LNet() string
+	}
+
+	// Nid is a container for RawNid and holds methods for serializing
+	// to/from JSON.
+	Nid struct {
+		raw RawNid
+	}
+)
+
+// MarshalJSON implements json.Marshaler
 func (nid *Nid) MarshalJSON() ([]byte, error) {
 	return json.Marshal(nid.String())
 }
 
+// UnmarshalJSON implements json.Unmarshaler
 func (nid *Nid) UnmarshalJSON(b []byte) error {
-	if b[0] == '"' {
-		b = b[1 : len(b)-1]
+	var nidStr string
+	if err := json.Unmarshal(b, &nidStr); err != nil {
+		return err
 	}
-	n, err := NidFromString(string(b))
+	n, err := NidFromString(nidStr)
 	if err != nil {
 		return err
 	}
@@ -38,14 +50,27 @@ func (nid *Nid) String() string {
 	return fmt.Sprintf("%s@%s", nid.raw.Address(), nid.raw.LNet())
 }
 
+// Address returns the underlying Nid address (e.g. a *net.IP, string, etc.)
 func (nid *Nid) Address() interface{} {
 	return nid.raw.Address()
 }
 
+// Driver returns the name of the Nid's LND
 func (nid *Nid) Driver() string {
 	return nid.raw.Driver()
 }
 
+// SupportedDrivers returns a list of supported LND names
+func SupportedDrivers() []string {
+	var list []string
+	for driver := range drivers {
+		list = append(list, driver)
+	}
+	return list
+}
+
+// NidFromString takes a string representation of a Nid and returns an
+// *Nid.
 func NidFromString(inString string) (*Nid, error) {
 	nidRe := regexp.MustCompile(`^(.*)@(\w+[^\d*])(\d*)$`)
 	matches := nidRe.FindStringSubmatch(inString)
@@ -64,20 +89,12 @@ func NidFromString(inString string) (*Nid, error) {
 		}
 	}
 
-	switch strings.ToLower(driver) {
-	case "tcp":
-		raw, err := newTcpNid(address, driverInstance)
+	if initFunc, present := drivers[driver]; present {
+		raw, err := initFunc(address, driverInstance)
 		if err != nil {
 			return nil, err
 		}
 		return &Nid{raw: raw}, nil
-	case "o2ib":
-		raw, err := newIbNid(address, driverInstance)
-		if err != nil {
-			return nil, err
-		}
-		return &Nid{raw: raw}, nil
-	default:
-		return nil, fmt.Errorf("Unsupported LND: %s", driver)
 	}
+	return nil, fmt.Errorf("Unsupported LND: %s", driver)
 }

@@ -9,7 +9,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestNidFromString(t *testing.T) {
+func TestNidFunctions(t *testing.T) {
 	Convey("NidFromString() should attempt to parse a string into a Nid", t, func() {
 		var tests = []struct {
 			in  string
@@ -53,6 +53,10 @@ func TestNidFromString(t *testing.T) {
 			})
 		}
 	})
+
+	Convey("SupportedDrivers() should return a list of driver names", t, func() {
+		So(lnet.SupportedDrivers(), ShouldNotBeEmpty)
+	})
 }
 
 func TestMarshalNid(t *testing.T) {
@@ -74,12 +78,13 @@ func TestMarshalNid(t *testing.T) {
 			out: `"10.0.1.10@o2ib42"`,
 		},
 	}
+
 	Convey("Marshalling to JSON should return string ", t, func() {
 		for _, tc := range tests {
 			Convey(tc.in, func() {
 				n, err := lnet.NidFromString(tc.in)
 				if err != nil {
-					panic(err)
+					t.Fatal(err)
 				}
 				j, err := json.Marshal(n)
 				So(err2str(err), ShouldEqual, tc.err)
@@ -105,6 +110,7 @@ func TestMarshalNid(t *testing.T) {
 		}
 	})
 }
+
 func err2str(err error) string {
 	if err != nil {
 		return err.Error()
