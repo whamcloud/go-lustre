@@ -2,10 +2,10 @@ package hsm
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"syscall"
 
-	"github.com/golang/glog"
 	"github.intel.com/hpdd/lustre/fs"
 )
 
@@ -77,7 +77,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 		var ev syscall.EpollEvent
 		epfd, err := syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
 		if err != nil {
-			glog.Fatal(err)
+			log.Fatal(err)
 		}
 		ev.Fd = int32(getFd(r))
 		ev.Events = syscall.EPOLLIN | EPOLLET
@@ -101,7 +101,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 				if err == syscall.Errno(syscall.EINTR) {
 					continue
 				}
-				glog.Fatal(err)
+				log.Fatal(err)
 			}
 
 			for n := 0; n < nfds; n++ {
@@ -116,7 +116,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 				case cdt.GetFd():
 					actions, err = cdt.Recv()
 					if err != nil {
-						glog.Error(err)
+						log.Println(err)
 						return
 					}
 				}
@@ -125,7 +125,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 
 			select {
 			case <-done:
-				glog.Error("actionWaiter done")
+				log.Println("actionWaiter done")
 				return
 			default:
 			}
@@ -159,7 +159,7 @@ func bufferedActionChannel(done <-chan struct{}, in <-chan ActionRequest) <-chan
 			select {
 			case item, ok := <-in:
 				if !ok {
-					glog.Error("in channel failed, close out!")
+					log.Println("in channel failed, close out!")
 					return
 				}
 				queue = append(queue, item)
@@ -168,7 +168,7 @@ func bufferedActionChannel(done <-chan struct{}, in <-chan ActionRequest) <-chan
 				queue = queue[1:]
 
 			case <-done:
-				glog.Error("buffered channel done")
+				log.Println("buffered channel done")
 
 				return
 			}

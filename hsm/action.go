@@ -3,8 +3,8 @@ package hsm
 import (
 	"errors"
 	"fmt"
+	"log"
 
-	"github.com/golang/glog"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/llapi"
@@ -103,7 +103,6 @@ func (cdt *Coordinator) GetFd() int {
 // Close terminates connection with coordinator.
 func (cdt *Coordinator) Close() {
 	if cdt.hcp != nil {
-		glog.Info("closing coordinator.")
 		llapi.HsmCopytoolUnregister(&cdt.hcp)
 		cdt.hcp = nil
 	}
@@ -146,7 +145,7 @@ func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 		if err != nil {
 
 			//Fixme...
-			glog.Fatal(err)
+			log.Fatal(err)
 		}
 	}
 	var err error
@@ -158,7 +157,6 @@ func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 		isError)
 	if err != nil {
 		llapi.HsmActionEnd(&ai.hcap, 0, 0, 0, -1)
-		glog.Errorf("action_begin failed: %v\n", err)
 		return nil, err
 
 	}
@@ -191,7 +189,6 @@ func (ai *ActionItem) Fid() *lustre.Fid {
 func (ai *ActionItem) FailImmediately(errval int) {
 	aih, err := ai.Begin(0, true)
 	if err != nil {
-		glog.Errorf("begin failed: %s", ai.String())
 		return
 	}
 	aih.End(0, 0, 0, errval)
