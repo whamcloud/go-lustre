@@ -9,6 +9,13 @@ package llapi
 // char * hal_fsname(struct hsm_action_list *hal) {
 //    return (char *) hal->hal_fsname;
 // }
+//
+// /* CGO 1.5 doesn't support zero byte fields at the
+//  * end of structs so we need an accessor.
+//  */
+// char * hai_data(struct hsm_action_item *hai) {
+//     return &hai->hai_data[0];
+// }
 import "C"
 import (
 	"errors"
@@ -138,7 +145,7 @@ func HsmCopytoolRecv(hcp *HsmCopytoolPrivate) (*HsmActionList, error) {
 
 func fetchData(hai *C.struct_hsm_action_item) []byte {
 	len := int(hai.hai_len) - int(unsafe.Sizeof(*hai))
-	return C.GoBytes(unsafe.Pointer(&hai.hai_data), C.int(len))
+	return C.GoBytes(unsafe.Pointer(C.hai_data(hai)), C.int(len))
 }
 
 // HsmActionBegin initializes the action so it can be processed by the copytool.
