@@ -24,24 +24,23 @@ func isError(rc C.int, err error) error {
 func GetVersion() (string, error) {
 	var buffer [4096]C.char
 	var cversion *C.char
-	var version string
-	rc, err := C.llapi_get_version(&buffer[0], C.int(len(buffer)),
-		&cversion)
+
+	rc, err := C.llapi_get_version(&buffer[0], C.int(len(buffer)), &cversion)
 	if err := isError(rc, err); err != nil {
 		return "", err
 	}
 
-	version = C.GoString(cversion)
-	return version, nil
+	return C.GoString(cversion), nil
 }
 
 // GetName returns the name-id of the client filesystem at mountPath
 func GetName(mountPath string) (string, error) {
 	var buffer [2048]C.char
+
 	rc, err := C.llapi_getname(C.CString(mountPath), &buffer[0], C.size_t(len(buffer)))
 	if err := isError(rc, err); err != nil {
 		return "", err
 	}
-	id := C.GoString(&buffer[0])
-	return id, nil
+
+	return C.GoString(&buffer[0]), nil
 }
