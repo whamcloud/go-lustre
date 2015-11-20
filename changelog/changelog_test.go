@@ -14,18 +14,28 @@ import (
 	"github.intel.com/hpdd/test/utils"
 )
 
+func nextCreateRecord(f *changelog.Follower) (changelog.Record, error) {
+	rec, err := f.NextRecord()
+	for ; err == nil && rec.Type() != "CREAT"; rec, err = f.NextRecord() {
+	}
+	return rec, err
+}
+
 var _ = Describe("When Changelogs are enabled", func() {
 	var changelogUser string
 	var changelogMdt string
 
 	BeforeEach(func() {
-		var err error
+		err := harness.Lock(utils.CurrentTestID(), nil)
+		Ω(err).ShouldNot(HaveOccurred())
+
 		changelogUser, changelogMdt, err = harness.RegisterChangelogUser()
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 	AfterEach(func() {
 		Ω(changelog.Clear(changelogMdt, changelogUser, 0)).Should(Succeed())
 		Ω(harness.DeregisterChangelogUser(changelogUser, changelogMdt)).Should(Succeed())
+		Ω(harness.Unlock(utils.CurrentTestID())).Should(Succeed())
 	})
 	Describe("creating a file", func() {
 		fileName := "new-file"
@@ -110,7 +120,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 					f.Close()
 				}
 
-				rec, err := f.NextRecord()
+				rec, err := nextCreateRecord(f)
 				if i < 4 {
 					Ω(err).ShouldNot(HaveOccurred())
 					log.Debug(rec.String())
@@ -138,7 +148,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 			defer f.Close()
 
 			for i := range testFiles[:len(testFiles)-1] {
-				rec, err := f.NextRecord()
+				rec, err := nextCreateRecord(f)
 				Ω(err).ShouldNot(HaveOccurred())
 				log.Debug(rec.String())
 				Expect(rec.Name()).To(Equal(testFiles[i]))
@@ -150,7 +160,7 @@ var _ = Describe("When Changelogs are enabled", func() {
 				utils.CreateTestFile(testFiles[lastIdx])
 			}()
 
-			rec, err := f.NextRecord()
+			rec, err := nextCreateRecord(f)
 			Ω(err).ShouldNot(HaveOccurred())
 			Expect(rec.Name()).To(Equal(testFiles[lastIdx]))
 		})

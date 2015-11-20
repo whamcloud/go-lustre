@@ -15,6 +15,7 @@ import (
 var _ = Describe("In the Lustre API functions,", func() {
 	testFiles := []string{"test1", "test2", "test3"}
 	BeforeEach(func() {
+		Ω(harness.Lock(utils.CurrentTestID(), nil)).Should(Succeed())
 		for _, file := range testFiles {
 			utils.CreateTestFile(file)
 		}
@@ -23,6 +24,7 @@ var _ = Describe("In the Lustre API functions,", func() {
 		for _, file := range testFiles {
 			Expect(os.Remove(utils.TestFilePath(file))).To(Succeed())
 		}
+		Ω(harness.Unlock(utils.CurrentTestID())).Should(Succeed())
 	})
 
 	Describe("Version()", func() {

@@ -116,9 +116,7 @@ var _ = Describe("In the layout library", func() {
 				Expect(l).ToNot(BeNil())
 				defer l.Free()
 
-				//TODO: LU-6589 this shoudln't fail, so shoudn't be NotTo
-				Expect(l.PatternSet(layout.DEFAULT)).NotTo(Succeed())
-				// Expect(l.Pattern()).To(Equal(layout.DEFAULT))
+				Expect(l.Pattern()).To(Equal(layout.DEFAULT))
 			})
 
 			It("Set stripe pattern to RAID0.", func() {
@@ -126,9 +124,8 @@ var _ = Describe("In the layout library", func() {
 				Expect(l).ToNot(BeNil())
 				defer l.Free()
 
-				//TODO: LU-6589 this shoudln't fail, so shoudn't be NotTo
-				Expect(l.PatternSet(layout.RAID0)).NotTo(Succeed())
-				// Expect(l.Pattern()).To(Equal(layout.RAID0))
+				Expect(l.PatternSet(layout.RAID0)).To(Succeed())
+				Expect(l.Pattern()).To(Equal(layout.RAID0))
 			})
 		})
 		Describe("Can read striping parameters from a file", func() {
@@ -138,11 +135,13 @@ var _ = Describe("In the layout library", func() {
 			ostIndex := 1
 
 			BeforeEach(func() {
+				Expect(harness.Lock(utils.CurrentTestID(), nil)).To(Succeed())
 				Expect(createFile(testFile, stripeCount, stripeSize, ostIndex)).To(Succeed())
 			})
 
 			AfterEach(func() {
 				Expect(os.Remove(testFile)).To(Succeed())
+				Expect(harness.Unlock(utils.CurrentTestID())).To(Succeed())
 			})
 
 			It("retrieves stripe count", func() {
