@@ -34,9 +34,9 @@ func statToCstat(fi os.FileInfo) *C.struct_stat {
 	st.st_mode = C.__mode_t(stat.Mode)
 	st.st_size = C.__off_t(stat.Size)
 	st.st_mtim.tv_sec = C.__time_t(stat.Mtim.Sec)
-	st.st_mtim.tv_nsec = C.long(stat.Mtim.Nsec)
+	st.st_mtim.tv_nsec = C.__syscall_slong_t(stat.Mtim.Nsec)
 	st.st_atim.tv_sec = C.__time_t(stat.Atim.Sec)
-	st.st_atim.tv_nsec = C.long(stat.Atim.Nsec)
+	st.st_atim.tv_nsec = C.__syscall_slong_t(stat.Atim.Nsec)
 
 	return &st
 }
