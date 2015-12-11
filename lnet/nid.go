@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // Each driver implementation needs to register itself in this map.
@@ -97,4 +98,27 @@ func NidFromString(inString string) (*Nid, error) {
 		return &Nid{raw: raw}, nil
 	}
 	return nil, fmt.Errorf("Unsupported LND: %s", driver)
+}
+
+// NidList is a list of NIDs for a server
+type NidList []*Nid
+
+func (n NidList) String() string {
+	var nidStrings []string
+	for _, nid := range n {
+		nidStrings = append(nidStrings, nid.String())
+	}
+	return strings.Join(nidStrings, ",")
+}
+
+// TargetSpec is a list of NidLists -- any of the NIDs could be used
+// to access this target on one of its servers
+type TargetSpec []NidList
+
+func (l TargetSpec) String() string {
+	var nodeStrings []string
+	for _, node := range l {
+		nodeStrings = append(nodeStrings, node.String())
+	}
+	return strings.Join(nodeStrings, ":")
 }
