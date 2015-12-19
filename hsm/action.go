@@ -130,6 +130,7 @@ type (
 		ArchiveID() uint
 		Length() uint64
 		String() string
+		Data() []byte
 	}
 )
 
@@ -264,4 +265,11 @@ func (ai *ActionItemHandle) Length() uint64 {
 // self-contained.
 func (ai *ActionItemHandle) ArchiveID() uint {
 	return ai.archiveID
+}
+
+// Data returns the additional request data.
+// The format of the data is agreed upon by the initiator of the HSM
+// request and backend driver that is doing the work.
+func (ai *ActionItemHandle) Data() []byte {
+	return ai.hai.Data
 }
