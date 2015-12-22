@@ -6,33 +6,33 @@ import (
 	"github.intel.com/hpdd/lustre/llapi"
 )
 
-// RequestHsmArchive submits a request to the coordinator for the
+// RequestArchive submits a request to the coordinator for the
 // specified list of fids to be archived to the specfied archive id.
-func RequestHsmArchive(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
+func RequestArchive(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
 	return hsmRequest(fsID, llapi.UserArchive, archiveID, fids)
 }
 
-// RequestHsmRestore submits a request to the coordinator for the
+// RequestRestore submits a request to the coordinator for the
 // specified list of fids to be restored from the specfied archive id.
-func RequestHsmRestore(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
+func RequestRestore(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
 	return hsmRequest(fsID, llapi.UserRestore, archiveID, fids)
 }
 
-// RequestHsmRelease submits a request to the coordinator for the
+// RequestRelease submits a request to the coordinator for the
 // specified list of fids to be released.
-func RequestHsmRelease(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
+func RequestRelease(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
 	return hsmRequest(fsID, llapi.UserRelease, archiveID, fids)
 }
 
-// RequestHsmRemove submits a request to the coordinator for the
+// RequestRemove submits a request to the coordinator for the
 // specified list of fids to be removed from the HSM backend.
-func RequestHsmRemove(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
+func RequestRemove(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
 	return hsmRequest(fsID, llapi.UserRemove, archiveID, fids)
 }
 
-// RequestHsmCancel submits a request to the coordinator to cancel any
+// RequestCancel submits a request to the coordinator to cancel any
 // outstanding requests involving the specified list of fids.
-func RequestHsmCancel(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
+func RequestCancel(fsID fs.ID, archiveID uint, fids []*lustre.Fid) error {
 	return hsmRequest(fsID, llapi.UserCancel, archiveID, fids)
 }
 
