@@ -21,6 +21,9 @@ import (
 	"github.intel.com/hpdd/lustre"
 )
 
+// This limit seems to be imposed by liblustreapi, somewhere.
+var MaxBatchSize = 50
+
 // HsmUserAction specifies an action for HsmRequest().
 type HsmUserAction uint
 
@@ -38,13 +41,34 @@ func (action HsmUserAction) String() string {
 }
 
 // HsmRequest submits an HSM request for list of files
-// The max suported size of the fileList is about 50.
-func HsmRequest(r string, cmd HsmUserAction, archiveID uint, fids []*lustre.Fid) (int, error) {
-	fileCount := len(fids)
-	if fileCount < 1 {
-		return 0, fmt.Errorf("Request must include at least 1 file!")
+func HsmRequest(r string, cmd HsmUserAction, archiveID uint, fidsToSend []*lustre.Fid) (int, error) {
+	if len(fidsToSend) < 1 {
+		return 0, fmt.Errorf("lustre: Request must include at least 1 file!")
 	}
 
+	var sentCount int
+	batch := make([]*lustre.Fid, MaxBatchSize)
+	for len(fidsToSend) > 0 {
+		if len(fidsToSend) < MaxBatchSize {
+			batch = fidsToSend
+		} else {
+			batch = fidsToSend[:MaxBatchSize]
+		}
+
+		batchCount, err := hsmRequest(r, cmd, archiveID, batch)
+		sentCount += batchCount
+		if err != nil {
+			return sentCount, err
+		}
+
+		fidsToSend = fidsToSend[batchCount:]
+	}
+
+	return sentCount, nil
+}
+
+func hsmRequest(r string, cmd HsmUserAction, archiveID uint, fids []*lustre.Fid) (int, error) {
+	fileCount := len(fids)
 	hur := C.llapi_hsm_user_request_alloc(C.int(fileCount), 0)
 	defer C.free(unsafe.Pointer(hur))
 	if hur == nil {
