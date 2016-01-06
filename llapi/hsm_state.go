@@ -19,90 +19,69 @@ struct hsm_user_state *hsm_user_state_alloc()
 import "C"
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 	"unsafe"
 )
 
-// HsmState is the hsm state for a file.
-type HsmState struct {
-	states    uint32
-	archiveID uint32
+type (
+	// HsmFileState is a bitmask containing the hsm state(s) for a file.
+	HsmFileState uint32
+
+	// HsmStateFlag represents a given HSM state flag
+	HsmStateFlag uint32
+)
+
+const (
+	HsmFileExists    = HsmStateFlag(C.HS_EXISTS)
+	HsmFileArchived  = HsmStateFlag(C.HS_ARCHIVED)
+	HsmFileReleased  = HsmStateFlag(C.HS_RELEASED)
+	HsmFileDirty     = HsmStateFlag(C.HS_DIRTY)
+	HsmFileNoRelease = HsmStateFlag(C.HS_NORELEASE)
+	HsmFileNoArchive = HsmStateFlag(C.HS_NOARCHIVE)
+	HsmFileLost      = HsmStateFlag(C.HS_LOST)
+)
+
+// HsmStateFlags is a map of HsmStateFlag -> string
+// NB: There's no llapi.hsm_state2name(), so we have to do it ourselves...
+var HsmStateFlags = map[HsmStateFlag]string{
+	HsmFileExists:    "exists",
+	HsmFileArchived:  "archived",
+	HsmFileReleased:  "released",
+	HsmFileDirty:     "dirty",
+	HsmFileNoRelease: "no_release",
+	HsmFileNoArchive: "no_archive",
+	HsmFileLost:      "lost",
 }
 
-// Exists is true if the HSM has been enabled for a file. A copy or partial copy of the file
-// may exist in the backend. Or it might not.
-func (s *HsmState) Exists() bool {
-	return s.states&C.HS_EXISTS > 0
+func (s HsmFileState) String() string {
+	return fmt.Sprintf("%#x %s", s, strings.Join(s.Flags(), " "))
 }
 
-// Archived is true of a completly (but possibly stale) copy of the file contents are stored in the archive.
-func (s *HsmState) Archived() bool {
-	return s.states&C.HS_ARCHIVED > 0
+func (f HsmStateFlag) String() string {
+	return HsmStateFlags[f]
 }
 
-// Dirty is true if the file has been modified since the last time it was archived.
-func (s *HsmState) Dirty() bool {
-	return s.states&C.HS_DIRTY > 0
+// HasFlag checks to see if the supplied flag matches
+func (s HsmFileState) HasFlag(flag HsmStateFlag) bool {
+	return uint32(s)&uint32(flag) > 0
 }
 
-// Released is true if the contents of the file have been removed from the filesystem. Only
-// possible if the file has been Archived.
-func (s *HsmState) Released() bool {
-	return s.states&C.HS_RELEASED > 0
-}
+// Flags returns a list of flag strings
+func (s HsmFileState) Flags() []string {
+	var flagStrings []string
 
-// NoRelease flag prevents the file data from being relesed, even if it is Archived.
-func (s *HsmState) NoRelease() bool {
-	return s.states&C.HS_NORELEASE > 0
-}
-
-// NoArchive flag inhibits archiving the file. (Useful for temporary files perhaps.)
-func (s *HsmState) NoArchive() bool {
-	return s.states&C.HS_NOARCHIVE > 0
-}
-
-// Lost flag means the copy of the file in the archive is not accessible.
-func (s *HsmState) Lost() bool {
-	return s.states&C.HS_LOST > 0
-}
-
-// ArchiveID is the id of the archive associated with this file.
-func (s *HsmState) ArchiveID() uint32 {
-	return s.archiveID
-}
-
-func (s *HsmState) String() string {
-	var buffer bytes.Buffer
-
-	buffer.WriteString(fmt.Sprintf("%#x", s.states))
-
-	if s.Released() {
-		buffer.WriteString(" released")
+	for flag, str := range HsmStateFlags {
+		if s.HasFlag(flag) {
+			flagStrings = append(flagStrings, str)
+		}
 	}
-	if s.Exists() {
-		buffer.WriteString(" exists")
-	}
-	if s.Dirty() {
-		buffer.WriteString(" dirty")
-	}
-	if s.Archived() {
-		buffer.WriteString(" archived")
-	}
-	if s.NoRelease() {
-		buffer.WriteString(" never_release")
-	}
-	if s.NoArchive() {
-		buffer.WriteString(" never_archive")
-	}
-	if s.Lost() {
-		buffer.WriteString(" lost_from_hsm")
-	}
-	return buffer.String()
+
+	return flagStrings
 }
 
-// HsmStateGet returns the HSM state for the given file.
-func HsmStateGet(filePath string) (*HsmState, error) {
+// GetHsmFileStatus returns the HSM state and archive number for the given file.
+func GetHsmFileStatus(filePath string) (HsmFileState, uint32, error) {
 	hus := C.hsm_user_state_alloc()
 	defer C.free(unsafe.Pointer(hus))
 
@@ -110,10 +89,22 @@ func HsmStateGet(filePath string) (*HsmState, error) {
 	defer C.free(unsafe.Pointer(buf))
 	rc, err := C.llapi_hsm_state_get(buf, hus)
 	if err != nil {
-		return nil, err
+		return 0, 0, err
 	}
 	if rc > 0 {
-		return nil, fmt.Errorf("Got %d from llapi_hsm_state, expected 0", rc)
+		return 0, 0, fmt.Errorf("Got %d from llapi_hsm_state_get, expected 0", rc)
 	}
-	return &HsmState{uint32(hus.hus_states), uint32(hus.hus_archive_id)}, nil
+	return HsmFileState(hus.hus_states), uint32(hus.hus_archive_id), nil
+}
+
+// SetHsmFileStatus updates the file's HSM flags and/or archive ID
+func SetHsmFileStatus(filePath string, setMask, clearMask uint64, archiveID uint32) error {
+	buf := C.CString(filePath)
+	defer C.free(unsafe.Pointer(buf))
+
+	rc, err := C.llapi_hsm_state_set(buf, C.__u64(setMask), C.__u64(clearMask), C.__u32(archiveID))
+	if rc > 0 {
+		return fmt.Errorf("Got %d from llapi_hsm_state_set, expected 0", rc)
+	}
+	return err
 }
