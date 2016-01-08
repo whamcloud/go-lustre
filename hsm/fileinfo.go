@@ -130,3 +130,123 @@ func FileStatusString(s *FileStatus, summarize bool) string {
 
 	return buf.String()
 }
+
+// SetFileStatus updates the file's HSM flags and/or archive ID
+func SetFileStatus(filePath string, setMask, clearMask uint64, archiveID uint32) error {
+	return llapi.SetHsmFileStatus(filePath, setMask, clearMask, archiveID)
+}
+
+// GetStatusMask converts a slice of flag strings to a bitmask
+func GetStatusMask(flagNames []string) (uint64, error) {
+	flagNameToFlags := make(map[string]llapi.HsmStateFlag)
+	for flag, name := range llapi.HsmStateFlags {
+		flagNameToFlags[name] = flag
+	}
+
+	mask := uint64(0)
+	for _, name := range flagNames {
+		if flag, ok := flagNameToFlags[name]; ok {
+			mask |= uint64(flag)
+		} else {
+			return 0, fmt.Errorf("Unknown HSM status flag name: %s", name)
+		}
+	}
+
+	return mask, nil
+}
+
+// GetStateFlagNames returns a slice of HSM state flag names
+func GetStateFlagNames() []string {
+	var names []string
+
+	for _, name := range llapi.HsmStateFlags {
+		names = append(names, name)
+	}
+
+	return names
+}
+
+// CurrentFileAction represents the current HSM action being performed
+// for a file, if any.
+type CurrentFileAction struct {
+	action llapi.HsmUserAction
+	state  llapi.HsmProgressState
+
+	Path        string
+	BytesCopied uint64
+}
+
+// Action returns a string representation of the current action
+func (cfa *CurrentFileAction) Action() string {
+	return strings.ToLower(cfa.action.String())
+}
+
+// State returns a string representation of the current action's state
+func (cfa *CurrentFileAction) State() string {
+	return strings.ToLower(cfa.state.String())
+}
+
+// Waiting indicates that the action is waiting to run
+func (cfa *CurrentFileAction) Waiting() bool {
+	return cfa.state == llapi.HsmProgressWaiting
+}
+
+// Running indicates that the action is running
+func (cfa *CurrentFileAction) Running() bool {
+	return cfa.state == llapi.HsmProgressRunning
+}
+
+// Done indicates that the action is done
+func (cfa *CurrentFileAction) Done() bool {
+	return cfa.state == llapi.HsmProgressDone
+}
+
+// IsArchive indicates whether or not the action is Archive
+func (cfa *CurrentFileAction) IsArchive() bool {
+	return cfa.action == llapi.HsmUserArchive
+}
+
+// IsRestore indicates whether or not the action is Restore
+func (cfa *CurrentFileAction) IsRestore() bool {
+	return cfa.action == llapi.HsmUserRestore
+}
+
+// IsRelease indicates whether or not the action is Release
+func (cfa *CurrentFileAction) IsRelease() bool {
+	return cfa.action == llapi.HsmUserRelease
+}
+
+// IsRemove indicates whether or not the action is Remove
+func (cfa *CurrentFileAction) IsRemove() bool {
+	return cfa.action == llapi.HsmUserRemove
+}
+
+// IsCancel indicates whether or not the action is Cancel
+func (cfa *CurrentFileAction) IsCancel() bool {
+	return cfa.action == llapi.HsmUserCancel
+}
+
+// IsNone indicates whether or not the action is None
+func (cfa *CurrentFileAction) IsNone() bool {
+	return cfa.action == llapi.HsmUserNone
+}
+
+func (cfa *CurrentFileAction) String() string {
+	return fmt.Sprintf("[%s:%s] (%dB)", cfa.Action(), cfa.State(), cfa.BytesCopied)
+}
+
+// GetFileAction returns the current HSM action for the given path, if any
+func GetFileAction(filePath string) (*CurrentFileAction, error) {
+	hca, err := llapi.GetHsmCurrentAction(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CurrentFileAction{
+		action: hca.Action,
+		state:  hca.State,
+
+		Path:        filePath,
+		BytesCopied: hca.Location.Length, // Offset is always 0
+	}, nil
+}

@@ -28,12 +28,12 @@ var MaxBatchSize = 50
 type HsmUserAction uint
 
 const (
-	UserNone    = HsmUserAction(C.HUA_NONE)
-	UserArchive = HsmUserAction(C.HUA_ARCHIVE)
-	UserRestore = HsmUserAction(C.HUA_RESTORE)
-	UserRelease = HsmUserAction(C.HUA_RELEASE)
-	UserRemove  = HsmUserAction(C.HUA_REMOVE)
-	UserCancel  = HsmUserAction(C.HUA_CANCEL)
+	HsmUserNone    = HsmUserAction(C.HUA_NONE)
+	HsmUserArchive = HsmUserAction(C.HUA_ARCHIVE)
+	HsmUserRestore = HsmUserAction(C.HUA_RESTORE)
+	HsmUserRelease = HsmUserAction(C.HUA_RELEASE)
+	HsmUserRemove  = HsmUserAction(C.HUA_REMOVE)
+	HsmUserCancel  = HsmUserAction(C.HUA_CANCEL)
 )
 
 func (action HsmUserAction) String() string {
