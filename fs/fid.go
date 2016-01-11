@@ -37,7 +37,12 @@ func LookupFid(path string) (*lustre.Fid, error) {
 
 // FidPath returns the open-by-fid path for a fid.
 func FidPath(mnt RootDir, f *lustre.Fid) string {
-	return path.Join(string(mnt), ".lustre", "fid", f.String())
+	return path.Join(string(mnt), FidRelativePath(f))
+}
+
+// FidRelativePath returns the relattive open-by-fid path for a fid.
+func FidRelativePath(f *lustre.Fid) string {
+	return path.Join(".lustre", "fid", f.String())
 }
 
 // FidPathname returns a path for a FID.
