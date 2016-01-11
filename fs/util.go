@@ -123,13 +123,18 @@ func (root RootDir) Path() string {
 // ID should be a unique identifier for a filesystem. For now just use RootDir
 type ID RootDir
 
-func (root ID) String() string {
-	return string(root)
+func (id ID) String() string {
+	return string(id)
 }
 
 // Path returns the path for the root
-func (root ID) Path() (string, error) {
-	return string(root), nil
+func (id ID) Path() (string, error) {
+	return string(id), nil
+}
+
+// Root returns the root dir for the root
+func (id ID) Root() (RootDir, error) {
+	return RootDir(id), nil
 }
 
 // GetID returns the filesystem's ID. For the moment, this is the root path, but in
