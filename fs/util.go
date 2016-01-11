@@ -188,12 +188,15 @@ func findRoot(dev uint64, pathname string) string {
 // MountRoot returns the Lustre filesystem mountpoint for the give path
 // or returns an error if the path is not on a Lustre filesystem.
 func MountRoot(path string) (RootDir, error) {
-	fi, err := os.Lstat(path)
+	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return RootDir(""), err
 	}
-
-	mnt := findRoot(rootDevice(fi), path)
+	fi, err := os.Lstat(absPath)
+	if err != nil {
+		return RootDir(""), err
+	}
+	mnt := findRoot(rootDevice(fi), absPath)
 	if mnt == "" {
 		return RootDir(""), fmt.Errorf("%s not a Lustre filesystem", path)
 	}
