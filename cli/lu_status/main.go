@@ -8,8 +8,10 @@ import (
 	"log"
 	"net"
 	"strings"
+	"syscall"
 
 	"github.intel.com/hpdd/lustre/fs"
+	"github.intel.com/hpdd/lustre/pkg/mntent"
 	"github.intel.com/hpdd/lustre/status"
 )
 
@@ -88,6 +90,14 @@ From: http://mathcentral.uregina.ca/QQ/database/QQ.09.02/carlos1.html
 
 */
 
+func getFsName(mountPath string) (string, error) {
+	entry, err := mntent.GetEntryByDir(mountPath)
+	if err != nil {
+		return "", err
+	}
+	return entry.Fsname, nil
+}
+
 func main() {
 	flag.Parse()
 	if mountPath == "" {
@@ -99,5 +109,17 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
+	fsname, err := getFsName(mountPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	statfs := &syscall.Statfs_t{}
+	err = syscall.Statfs(mountPath, statfs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("fs: %s statfs.Fsid: 0x%x\n", fsname, statfs.Fsid.X__val[0])
 	clientStatus(c)
 }
