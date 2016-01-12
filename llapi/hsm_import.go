@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"syscall"
+	"unsafe"
 
 	"github.intel.com/hpdd/lustre"
 )
@@ -50,7 +51,7 @@ func statToCstat(fi os.FileInfo) *C.struct_stat {
 // should be simple struct the caller can populate. (Though just using syscall.Stat_t
 // is also tempting.)
 func HsmImport(
-	f string,
+	name string,
 	archive uint,
 	fi os.FileInfo,
 	stripeSize uint64,
@@ -66,8 +67,11 @@ func HsmImport(
 		return nil, errStatError
 	}
 
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
 	rc, err := C.llapi_hsm_import(
-		C.CString(f),
+		cname,
 		C.int(archive),
 		st,
 		C.ulonglong(stripeSize),

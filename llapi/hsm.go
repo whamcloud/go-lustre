@@ -4,6 +4,7 @@ package llapi
 // #cgo LDFLAGS: -llustreapi
 // #include <fcntl.h>
 // #include <lustre/lustreapi.h>
+// #include <stdlib.h>
 //
 // /* typecast hal_fsname to char *  */
 // char * hal_fsname(struct hsm_action_list *hal) {
@@ -81,7 +82,9 @@ const (
 // and poll() could used on the coordinator's descriptor.
 func HsmCopytoolRegister(path string, archiveCount int, archives []int, flags HsmCopytoolFlags) (*HsmCopytoolPrivate, error) {
 	var hcp *C.struct_hsm_copytool_private
-	rc, err := C.llapi_hsm_copytool_register(&hcp, C.CString(string(path)), 0, nil, C.int(flags))
+	cpath := C.CString(string(path))
+	defer C.free(unsafe.Pointer(cpath))
+	rc, err := C.llapi_hsm_copytool_register(&hcp, cpath, 0, nil, C.int(flags))
 	if err := isError(rc, err); err != nil {
 		return nil, err
 	}

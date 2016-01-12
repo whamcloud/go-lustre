@@ -6,9 +6,13 @@ package llapi
 //
 // #cgo LDFLAGS: -llustreapi
 // #include <lustre/lustreapi.h>
+// #include <stdlib.h>
 //
 import "C"
-import "syscall"
+import (
+	"syscall"
+	"unsafe"
+)
 
 func isError(rc C.int, err error) error {
 	if rc < 0 {
@@ -37,7 +41,10 @@ func GetVersion() (string, error) {
 func GetName(mountPath string) (string, error) {
 	var buffer [2048]C.char
 
-	rc, err := C.llapi_getname(C.CString(mountPath), &buffer[0], C.size_t(len(buffer)))
+	cmountPath := C.CString(mountPath)
+	defer C.free(unsafe.Pointer(cmountPath))
+
+	rc, err := C.llapi_getname(cmountPath, &buffer[0], C.size_t(len(buffer)))
 	if err := isError(rc, err); err != nil {
 		return "", err
 	}

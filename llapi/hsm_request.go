@@ -47,8 +47,9 @@ func HsmRequest(r string, cmd HsmUserAction, archiveID uint, fidsToSend []*lustr
 	}
 
 	var sentCount int
-	batch := make([]*lustre.Fid, MaxBatchSize)
+
 	for len(fidsToSend) > 0 {
+		var batch []*lustre.Fid
 		if len(fidsToSend) < MaxBatchSize {
 			batch = fidsToSend
 		} else {
