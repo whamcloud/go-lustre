@@ -99,7 +99,7 @@ func summarizeStatus(s *FileStatus) string {
 	}
 
 	if s.NoArchive() {
-		fmt.Fprintf(&buf, "%")
+		fmt.Fprintf(&buf, "%%")
 	}
 
 	return buf.String()
