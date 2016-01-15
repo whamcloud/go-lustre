@@ -227,8 +227,10 @@ func findRelPath(dev uint64, pathname string, relPath []string) (string, string)
 	return findRelPath(dev, parent, append([]string{path.Base(pathname)}, relPath...))
 }
 
-// MountRelPath returns the lustre mountpoint, and remaing path for the given pathname. The remaining  paht
-// is relative to the mount point. Returns an error if pathname is not valid or does not refer to a Lustre fs.
+// MountRelPath returns the lustre mountpoint, and remaing path for
+// the given pathname. The remaining path is relative to the mount
+// point. Returns an error if pathname is not valid or does not refer
+// to a Lustre fs.
 func MountRelPath(pathname string) (RootDir, string, error) {
 	pathname = filepath.Clean(pathname)
 	fi, err := os.Lstat(pathname)
