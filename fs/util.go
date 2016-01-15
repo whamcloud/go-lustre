@@ -41,6 +41,27 @@ func MountID(mountPath string) (*status.LustreClient, error) {
 // RootDir represent a the mount point of a Lustre filesystem.
 type RootDir string
 
+// IsValid indicates whether or not the RootDir is actually the
+// root of a Lustre filesystem.
+func (r RootDir) IsValid() bool {
+	return isDotLustre(r.Join(".lustre"))
+}
+
+// Join args with root dir to create an absolute path.
+// FIXME: replace this with OpenAt and friends
+func (root RootDir) Join(args ...string) string {
+	return path.Join(string(root), path.Join(args...))
+}
+
+func (root RootDir) String() string {
+	return string(root)
+}
+
+// Path returns the path for the root
+func (root RootDir) Path() string {
+	return root.String()
+}
+
 type mountDir struct {
 	path   RootDir
 	lock   sync.Mutex
@@ -103,21 +124,6 @@ func getOpenMount(root RootDir) *mountDir {
 func GetMdt(root RootDir, f *lustre.Fid) (int, error) {
 	mnt := getOpenMount(root)
 	return mnt.GetMdt(f)
-}
-
-// Join args with root dir to create an absolute path.
-// FIXME: replace this with OpenAt and friends
-func (root RootDir) Join(args ...string) string {
-	return path.Join(string(root), path.Join(args...))
-}
-
-func (root RootDir) String() string {
-	return string(root)
-}
-
-// Path returns the path for the root
-func (root RootDir) Path() string {
-	return string(root)
 }
 
 // ID should be a unique identifier for a filesystem. For now just use RootDir
