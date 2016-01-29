@@ -6,6 +6,9 @@ import (
 	"os"
 	"syscall"
 
+	"golang.org/x/net/context"
+
+	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
 )
 
@@ -27,7 +30,7 @@ type agent struct {
 }
 
 // Start initializes an agent for the filesystem in root.
-func Start(root fs.RootDir, done chan struct{}) (Agent, error) {
+func Start(root fs.RootDir, ctx context.Context) (Agent, error) {
 	agent := &agent{root: root}
 
 	// This pipe is used by Stop() to signal the action waiter goroutine.
@@ -36,7 +39,7 @@ func Start(root fs.RootDir, done chan struct{}) (Agent, error) {
 		return nil, err
 	}
 	agent.stopFd = w
-	err = agent.launchActionWaiter(r, done)
+	err = agent.launchActionWaiter(r, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +66,7 @@ func getFd(f *os.File) int {
 // the version in syscall is missing the uint32 and doesn't compile here
 const EPOLLET = uint32(1) << 31
 
-func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
+func (agent *agent) launchActionWaiter(r *os.File, ctx context.Context) error {
 	var err error
 	cdt, err := CoordinatorConnection(agent.root, true)
 	if err != nil {
@@ -116,7 +119,7 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 				case cdt.GetFd():
 					actions, err = cdt.Recv()
 					if err != nil {
-						log.Println(err)
+						liblog.Debug(err)
 						return
 					}
 				}
@@ -124,8 +127,8 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 			}
 
 			select {
-			case <-done:
-				log.Println("actionWaiter done")
+			case <-ctx.Done():
+				liblog.Debug("actionWaiter done")
 				return
 			default:
 			}
@@ -136,13 +139,13 @@ func (agent *agent) launchActionWaiter(r *os.File, done chan struct{}) error {
 		}
 	}()
 
-	agent.actions = bufferedActionChannel(done, ch)
+	agent.actions = bufferedActionChannel(ctx, ch)
 	return nil
 }
 
 // bufferedActionChannel buffers the input channel into an arbitrarily sized queue, and returns
 // the channel for consumers to read from.
-func bufferedActionChannel(done <-chan struct{}, in <-chan ActionRequest) <-chan ActionRequest {
+func bufferedActionChannel(ctx context.Context, in <-chan ActionRequest) <-chan ActionRequest {
 	var queue []ActionRequest
 	out := make(chan ActionRequest)
 
@@ -159,7 +162,7 @@ func bufferedActionChannel(done <-chan struct{}, in <-chan ActionRequest) <-chan
 			select {
 			case item, ok := <-in:
 				if !ok {
-					log.Println("in channel failed, close out!")
+					liblog.Debug("in channel failed, close out!")
 					return
 				}
 				queue = append(queue, item)
@@ -167,8 +170,8 @@ func bufferedActionChannel(done <-chan struct{}, in <-chan ActionRequest) <-chan
 			case send <- first:
 				queue = queue[1:]
 
-			case <-done:
-				log.Println("buffered channel done")
+			case <-ctx.Done():
+				liblog.Debug("buffered channel done")
 
 				return
 			}
