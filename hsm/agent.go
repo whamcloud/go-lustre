@@ -30,7 +30,7 @@ type agent struct {
 }
 
 // Start initializes an agent for the filesystem in root.
-func Start(root fs.RootDir, ctx context.Context) (Agent, error) {
+func Start(ctx context.Context, root fs.RootDir) (Agent, error) {
 	agent := &agent{root: root}
 
 	// This pipe is used by Stop() to signal the action waiter goroutine.
@@ -39,7 +39,7 @@ func Start(root fs.RootDir, ctx context.Context) (Agent, error) {
 		return nil, err
 	}
 	agent.stopFd = w
-	err = agent.launchActionWaiter(r, ctx)
+	err = agent.launchActionWaiter(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func getFd(f *os.File) int {
 // the version in syscall is missing the uint32 and doesn't compile here
 const EPOLLET = uint32(1) << 31
 
-func (agent *agent) launchActionWaiter(r *os.File, ctx context.Context) error {
+func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
 	var err error
 	cdt, err := CoordinatorConnection(agent.root, true)
 	if err != nil {
