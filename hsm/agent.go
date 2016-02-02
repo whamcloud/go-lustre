@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"syscall"
 
 	"golang.org/x/net/context"
@@ -25,14 +26,16 @@ type Agent interface {
 
 type agent struct {
 	root    fs.RootDir
-	stopFd  *os.File
 	actions <-chan ActionRequest
+	mu      sync.Mutex // Protect stopFd
+	stopFd  *os.File
 }
 
 // Start initializes an agent for the filesystem in root.
 func Start(ctx context.Context, root fs.RootDir) (Agent, error) {
 	agent := &agent{root: root}
-
+	agent.mu.Lock()
+	defer agent.mu.Unlock()
 	// This pipe is used by Stop() to signal the action waiter goroutine.
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -48,7 +51,9 @@ func Start(ctx context.Context, root fs.RootDir) (Agent, error) {
 
 func (agent *agent) Stop() {
 	// TODO: lock agent
-	if agent == nil || agent.stopFd == nil {
+	agent.mu.Lock()
+	defer agent.mu.Unlock()
+	if agent.stopFd == nil {
 		return
 	}
 	agent.stopFd.Write([]byte("stop"))
@@ -92,9 +97,9 @@ func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
 
 		defer func() {
 			cdt.Close()
-			close(ch)
 			r.Close()
 			syscall.Close(epfd)
+			close(ch)
 		}()
 
 		for {
