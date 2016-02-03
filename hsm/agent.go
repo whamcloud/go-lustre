@@ -7,8 +7,6 @@ import (
 	"sync"
 	"syscall"
 
-	"golang.org/x/net/context"
-
 	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
 )
@@ -32,17 +30,17 @@ type agent struct {
 }
 
 // Start initializes an agent for the filesystem in root.
-func Start(ctx context.Context, root fs.RootDir) (Agent, error) {
+func Start(root fs.RootDir) (Agent, error) {
 	agent := &agent{root: root}
 	agent.mu.Lock()
 	defer agent.mu.Unlock()
-	// This pipe is used by Stop() to signal the action waiter goroutine.
+	// This pipe is used by Stop() to send the terminate signal to actionListener.
 	r, w, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
 	agent.stopFd = w
-	err = agent.launchActionWaiter(ctx, r)
+	err = agent.actionListener(r)
 	if err != nil {
 		return nil, err
 	}
@@ -50,13 +48,12 @@ func Start(ctx context.Context, root fs.RootDir) (Agent, error) {
 }
 
 func (agent *agent) Stop() {
-	// TODO: lock agent
 	agent.mu.Lock()
 	defer agent.mu.Unlock()
 	if agent.stopFd == nil {
 		return
 	}
-	agent.stopFd.Write([]byte("stop"))
+	agent.stopFd.Write([]byte("stop")) // Aribitrary data to wake up listener
 	agent.stopFd.Close()
 	agent.stopFd = nil
 }
@@ -71,7 +68,7 @@ func getFd(f *os.File) int {
 // the version in syscall is missing the uint32 and doesn't compile here
 const EPOLLET = uint32(1) << 31
 
-func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
+func (agent *agent) actionListener(stopFile *os.File) error {
 	var err error
 	cdt, err := CoordinatorConnection(agent.root, true)
 	if err != nil {
@@ -87,9 +84,9 @@ func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		ev.Fd = int32(getFd(r))
+		ev.Fd = int32(getFd(stopFile))
 		ev.Events = syscall.EPOLLIN | EPOLLET
-		err = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, getFd(r), &ev)
+		err = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, getFd(stopFile), &ev)
 
 		ev.Fd = int32(cdt.GetFd())
 		ev.Events = syscall.EPOLLIN | EPOLLET
@@ -97,7 +94,7 @@ func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
 
 		defer func() {
 			cdt.Close()
-			r.Close()
+			stopFile.Close()
 			syscall.Close(epfd)
 			close(ch)
 		}()
@@ -115,11 +112,9 @@ func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
 			for n := 0; n < nfds; n++ {
 				ev := events[n]
 				switch int(ev.Fd) {
-				case getFd(r):
+				case getFd(stopFile):
 					buf := make([]byte, 32)
-					r.Read(buf)
-					// might be better to fall throuhg and exit at done below, but don't
-					// want to risk starting new actions when we're about to quit
+					stopFile.Read(buf)
 					return
 				case cdt.GetFd():
 					actions, err = cdt.Recv()
@@ -131,12 +126,6 @@ func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
 
 			}
 
-			select {
-			case <-ctx.Done():
-				liblog.Debug("actionWaiter done")
-				return
-			default:
-			}
 			for _, ai := range actions {
 				a := ai
 				ch <- &a
@@ -144,13 +133,13 @@ func (agent *agent) launchActionWaiter(ctx context.Context, r *os.File) error {
 		}
 	}()
 
-	agent.actions = bufferedActionChannel(ctx, ch)
+	agent.actions = bufferedActionChannel(ch)
 	return nil
 }
 
 // bufferedActionChannel buffers the input channel into an arbitrarily sized queue, and returns
 // the channel for consumers to read from.
-func bufferedActionChannel(ctx context.Context, in <-chan ActionRequest) <-chan ActionRequest {
+func bufferedActionChannel(in <-chan ActionRequest) <-chan ActionRequest {
 	var queue []ActionRequest
 	out := make(chan ActionRequest)
 
@@ -174,11 +163,6 @@ func bufferedActionChannel(ctx context.Context, in <-chan ActionRequest) <-chan 
 
 			case send <- first:
 				queue = queue[1:]
-
-			case <-ctx.Done():
-				liblog.Debug("buffered channel done")
-
-				return
 			}
 		}
 	}()
