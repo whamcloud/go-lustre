@@ -65,7 +65,8 @@ func getFd(f *os.File) int {
 	return int(f.Fd())
 }
 
-// the version in syscall is missing the uint32 and doesn't compile here
+// EPOLLET is defined here because syscall.EPOLLET overflows uint32
+// https://github.com/golang/go/issues/5328
 const EPOLLET = uint32(1) << 31
 
 func (agent *agent) actionListener(stopFile *os.File) error {
@@ -100,7 +101,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 		}()
 
 		for {
-			var actions []ActionItem
+			var actions []*ActionItem
 			nfds, err := syscall.EpollWait(epfd, events, -1)
 			if err != nil {
 				if err == syscall.Errno(syscall.EINTR) {
@@ -127,8 +128,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 			}
 
 			for _, ai := range actions {
-				a := ai
-				ch <- &a
+				ch <- ai
 			}
 		}
 	}()

@@ -74,8 +74,8 @@ func CoordinatorConnection(path fs.RootDir, nonBlocking bool) (*Coordinator, err
 }
 
 // Recv blocks and waits for new action items from the coordinator.
-// Retuns a slice of ActionItems.
-func (cdt *Coordinator) Recv() ([]ActionItem, error) {
+// Retuns a slice of *ActionItem.
+func (cdt *Coordinator) Recv() ([]*ActionItem, error) {
 
 	if cdt.hcp == nil {
 		return nil, errors.New("coordinator closed")
@@ -84,9 +84,9 @@ func (cdt *Coordinator) Recv() ([]ActionItem, error) {
 	if err != nil {
 		return nil, err
 	}
-	items := make([]ActionItem, len(actionList.Items))
+	items := make([]*ActionItem, len(actionList.Items))
 	for i, hai := range actionList.Items {
-		item := ActionItem{
+		item := &ActionItem{
 			halFlags:  actionList.Flags,
 			archiveID: actionList.ArchiveID,
 			cdt:       cdt,
