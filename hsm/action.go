@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
@@ -28,6 +29,7 @@ type (
 
 	// ActionItem is one action to perform on specified file.
 	ActionItem struct {
+		mu        sync.Mutex
 		cdt       *Coordinator
 		hcap      *llapi.HsmCopyActionPrivate
 		hai       llapi.HsmActionItem
@@ -139,6 +141,8 @@ type (
 // returns an ActionItemHandle. The End method must be called to complete
 // this action.
 func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
+	ai.mu.Lock()
+	defer ai.mu.Unlock()
 	mdtIndex := -1
 	if ai.Action() == RESTORE && !isError {
 		var err error
@@ -208,12 +212,16 @@ func (ai *ActionItemHandle) String() string {
 
 // Progress reports current progress of an action.
 func (ai *ActionItemHandle) Progress(offset uint64, length uint64, totalLength uint64, flags int) error {
+	ai.mu.Lock()
+	defer ai.mu.Unlock()
 	return llapi.HsmActionProgress(ai.hcap, offset, length, totalLength, flags)
 }
 
 // End completes an action with specified status.
 // No more requests should be made on this action after calling this.
 func (ai *ActionItemHandle) End(offset uint64, length uint64, flags int, errval int) error {
+	ai.mu.Lock()
+	defer ai.mu.Unlock()
 	return llapi.HsmActionEnd(&ai.hcap, offset, length, flags, errval)
 }
 
@@ -237,12 +245,16 @@ func (ai *ActionItemHandle) Cookie() uint64 {
 // DataFid returns the FID of the data file.
 // This file should be used for all Lustre IO for archive and restore commands.
 func (ai *ActionItemHandle) DataFid() (*lustre.Fid, error) {
+	ai.mu.Lock()
+	defer ai.mu.Unlock()
 	return llapi.HsmActionGetDataFid(ai.hcap)
 }
 
 // Fd returns the file descriptor of the DataFid.
 // If used, this Fd must be closed prior to calling End.
 func (ai *ActionItemHandle) Fd() (uintptr, error) {
+	ai.mu.Lock()
+	defer ai.mu.Unlock()
 	fd, err := llapi.HsmActionGetFd(ai.hcap)
 	if err != nil {
 		return 0, err
