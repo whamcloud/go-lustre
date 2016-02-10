@@ -7,7 +7,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 )
 
@@ -120,7 +120,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 				case cdt.GetFd():
 					actions, err = cdt.Recv()
 					if err != nil {
-						liblog.Debug(err)
+						debug.Print(err)
 						return
 					}
 				}
@@ -156,7 +156,7 @@ func bufferedActionChannel(in <-chan ActionRequest) <-chan ActionRequest {
 			select {
 			case item, ok := <-in:
 				if !ok {
-					liblog.Debug("in channel failed, close out!")
+					debug.Print("in channel failed, close out!")
 					return
 				}
 				queue = append(queue, item)
