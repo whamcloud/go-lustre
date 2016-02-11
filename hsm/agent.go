@@ -2,11 +2,11 @@ package hsm
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"syscall"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 )
@@ -83,7 +83,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 		var ev syscall.EpollEvent
 		epfd, err := syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
 		if err != nil {
-			log.Fatal(err)
+			alert.Fatal(err)
 		}
 		ev.Fd = int32(getFd(stopFile))
 		ev.Events = syscall.EPOLLIN | EPOLLET
@@ -107,7 +107,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 				if err == syscall.Errno(syscall.EINTR) {
 					continue
 				}
-				log.Fatal(err)
+				alert.Fatal(err)
 			}
 
 			for n := 0; n < nfds; n++ {

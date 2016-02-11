@@ -3,7 +3,6 @@ package hsm
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.intel.com/hpdd/lustre"
@@ -149,8 +148,7 @@ func (ai *ActionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 		mdtIndex, err = fs.GetMdt(ai.cdt.root, ai.Fid())
 		if err != nil {
 
-			//Fixme...
-			log.Fatal(err)
+			return nil, err
 		}
 	}
 	var err error

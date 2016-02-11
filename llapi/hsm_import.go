@@ -12,11 +12,11 @@ import "C"
 
 import (
 	"errors"
-	"log"
 	"os"
 	"syscall"
 	"unsafe"
 
+	"github.intel.com/hpdd/debug"
 	"github.intel.com/hpdd/lustre"
 )
 
@@ -25,7 +25,7 @@ var errStatError = errors.New("stat failure")
 func statToCstat(fi os.FileInfo) *C.struct_stat {
 	stat, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
-		log.Printf("no stat info")
+		debug.Print("no stat info")
 		return nil
 	}
 

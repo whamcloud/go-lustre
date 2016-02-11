@@ -29,7 +29,9 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("Version()", func() {
 		It("should return the current Lustre version.", func() {
-			Expect(fs.Version()).ToNot(Equal(""))
+			v, err := fs.Version()
+			Ω(err).ShouldNot(HaveOccurred())
+			Expect(v).ToNot(Equal(""))
 		})
 	})
 

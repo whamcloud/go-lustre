@@ -2,7 +2,6 @@ package fs
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,13 +15,12 @@ import (
 )
 
 // Version returns the current Lustre version string.
-func Version() string {
+func Version() (string, error) {
 	v, err := llapi.GetVersion()
 	if err != nil {
-		log.Printf("GetVersion failed: %v\n", err)
-		return ""
+		return "", fmt.Errorf("llapi.GetVersion() failed: %s", err)
 	}
-	return v
+	return v, nil
 }
 
 // MountID returns the local Lustre client indentifier for that mountpoint. This can
@@ -43,8 +41,8 @@ type RootDir string
 
 // IsValid indicates whether or not the RootDir is actually the
 // root of a Lustre filesystem.
-func (r RootDir) IsValid() bool {
-	return isDotLustre(r.Join(".lustre"))
+func (root RootDir) IsValid() bool {
+	return isDotLustre(root.Join(".lustre"))
 }
 
 // Join args with root dir to create an absolute path.
