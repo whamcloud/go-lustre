@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.intel.com/hpdd/debug"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/luser"

@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.intel.com/hpdd/debug"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
 )
 
