@@ -101,7 +101,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 		}()
 
 		for {
-			var actions []*ActionItem
+			var actions []*actionItem
 			nfds, err := syscall.EpollWait(epfd, events, -1)
 			if err != nil {
 				if err == syscall.Errno(syscall.EINTR) {

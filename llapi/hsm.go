@@ -63,6 +63,10 @@ const (
 	HsmActionCancel  = HsmAction(C.HSMA_CANCEL)
 )
 
+const (
+	LovDelayCreate = int(C.O_LOV_DELAY_CREATE)
+)
+
 func (action HsmAction) String() string {
 	return C.GoString(C.hsm_copytool_action2name(C.enum_hsm_copytool_action(action)))
 }

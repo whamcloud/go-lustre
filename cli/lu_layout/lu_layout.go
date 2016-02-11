@@ -17,7 +17,7 @@ import (
 	"unsafe"
 
 	"github.intel.com/hpdd/lustre/llapi/layout"
-	"github.intel.com/hpdd/lustre/system"
+	"github.intel.com/hpdd/lustre/pkg/xattr"
 )
 
 var (
@@ -51,7 +51,7 @@ func main() {
 		l.Free()
 
 		// Fetch directly from EA
-		lovBuf, err := system.Lgetxattr(name, "lustre.lov")
+		lovBuf, err := xattr.Lgetxattr(name, "lustre.lov")
 		if err != nil {
 			log.Fatal(err)
 		}

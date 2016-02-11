@@ -11,7 +11,7 @@ import (
 	"unsafe"
 
 	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/system"
+	"github.intel.com/hpdd/lustre/pkg/xattr"
 )
 
 func fromCFid(f *C.struct_lu_fid) *lustre.Fid {
@@ -34,7 +34,7 @@ const XATTR_NAME_LMA = "trusted.lma" // copied from lustre_idl.h
 
 // GetFid retuns the lustre.Fid for the path name.
 func GetFid(path string) (*lustre.Fid, error) {
-	buf, err := system.Lgetxattr(path, XATTR_NAME_LMA)
+	buf, err := xattr.Lgetxattr(path, XATTR_NAME_LMA)
 	if err != nil {
 		return nil, err
 	}

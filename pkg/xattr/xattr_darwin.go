@@ -1,6 +1,7 @@
-package system
+package xattr
 
 import (
+	"errors"
 	"syscall"
 	"unsafe"
 )
@@ -18,13 +19,13 @@ func Lgetxattr(path, attr string) ([]byte, error) {
 	}
 
 	buf := make([]byte, 128)
-	sz, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR,
+	sz, _, errno := syscall.Syscall6(syscall.SYS_GETXATTR,
 		uintptr(unsafe.Pointer(pathBuf)),
 		uintptr(unsafe.Pointer(attrBuf)),
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(len(buf)),
 		0,
-		0)
+		syscall.XATTR_NOFOLLOW)
 
 	if errno != 0 {
 		switch errno {
@@ -42,7 +43,7 @@ func Lgetxattr(path, attr string) ([]byte, error) {
 }
 
 // Lsetxattr sets the extended attribute on the path name
-func Lsetxattr(path, attr string, value []byte, flags int) error {
+func Lgetxattr(path, attr string) ([]byte, error) {
 	pathBuf, err := syscall.BytePtrFromString(path)
 	if err != nil {
 		return err
@@ -55,15 +56,19 @@ func Lsetxattr(path, attr string, value []byte, flags int) error {
 
 	valuePtr := &value[0]
 
-	_, _, errno := syscall.Syscall6(syscall.SYS_LSETXATTR,
+	_, _, errno := syscall.Syscall6(syscall.SYS_SETXATTR,
 		uintptr(unsafe.Pointer(pathBuf)),
 		uintptr(unsafe.Pointer(attrBuf)),
 		uintptr(unsafe.Pointer(valuePtr)),
 		uintptr(len(value)),
-		uintptr(flags),
-		0)
+		0,
+		flags|syscall.XATTR_NOFOLLOW)
 	if errno == 0 {
 		return nil
 	}
 	return errno
+}
+
+func Fsetxattr(fd int, attr string, value []byte, flags int) error {
+	return errors.New("Fsetxattr unimplemented on this platform.")
 }
