@@ -9,6 +9,7 @@ import (
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
+	"golang.org/x/sys/unix"
 )
 
 // Agent receives HSM action  from the Coordinator.
@@ -65,10 +66,6 @@ func getFd(f *os.File) int {
 	return int(f.Fd())
 }
 
-// EPOLLET is defined here because syscall.EPOLLET overflows uint32
-// https://github.com/golang/go/issues/5328
-const EPOLLET = uint32(1) << 31
-
 func (agent *agent) actionListener(stopFile *os.File) error {
 	var err error
 	cdt, err := CoordinatorConnection(agent.root, true)
@@ -79,32 +76,32 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 	ch := make(chan ActionRequest)
 
 	go func() {
-		var events = make([]syscall.EpollEvent, 2)
-		var ev syscall.EpollEvent
-		epfd, err := syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
+		var events = make([]unix.EpollEvent, 2)
+		var ev unix.EpollEvent
+		epfd, err := unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 		if err != nil {
 			alert.Fatal(err)
 		}
 		ev.Fd = int32(getFd(stopFile))
-		ev.Events = syscall.EPOLLIN | EPOLLET
-		err = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, getFd(stopFile), &ev)
+		ev.Events = unix.EPOLLIN | unix.EPOLLET
+		err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, getFd(stopFile), &ev)
 
 		ev.Fd = int32(cdt.GetFd())
-		ev.Events = syscall.EPOLLIN | EPOLLET
-		err = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, cdt.GetFd(), &ev)
+		ev.Events = unix.EPOLLIN | unix.EPOLLET
+		err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, cdt.GetFd(), &ev)
 
 		defer func() {
 			cdt.Close()
 			stopFile.Close()
-			syscall.Close(epfd)
+			unix.Close(epfd)
 			close(ch)
 		}()
 
 		for {
 			var actions []*actionItem
-			nfds, err := syscall.EpollWait(epfd, events, -1)
+			nfds, err := unix.EpollWait(epfd, events, -1)
 			if err != nil {
-				if err == syscall.Errno(syscall.EINTR) {
+				if err == syscall.Errno(unix.EINTR) {
 					continue
 				}
 				alert.Fatal(err)
