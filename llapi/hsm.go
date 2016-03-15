@@ -67,8 +67,22 @@ const (
 	LovDelayCreate = int(C.O_LOV_DELAY_CREATE)
 )
 
-func (action HsmAction) String() string {
-	return C.GoString(C.hsm_copytool_action2name(C.enum_hsm_copytool_action(action)))
+func (action HsmAction) String() (s string) {
+	switch action {
+	case HsmActionNone:
+		s = "NOOP"
+	case HsmActionArchive:
+		s = "ARCHIVE"
+	case HsmActionRestore:
+		s = "RESTORE"
+	case HsmActionRemove:
+		s = "REMOVE"
+	case HsmActionCancel:
+		s = "CANCEL"
+	default:
+		s = "UNKOWN"
+	}
+	return
 }
 
 // HsmCopytooLFlags for initializing copytool
