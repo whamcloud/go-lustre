@@ -15,30 +15,37 @@ const (
 var _zero uintptr
 
 // Lgetxattr returns the extended attribute from the path name.
-func Lgetxattr(path, attr string) ([]byte, error) {
+func Lgetxattr(path, attr string, dest []byte) (sz int, err error) {
 	pathBuf, err := syscall.BytePtrFromString(path)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	attrBuf, err := syscall.BytePtrFromString(attr)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	buf := make([]byte, 128)
-	sz, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR,
+	var buf unsafe.Pointer
+	if len(dest) > 0 {
+		buf = unsafe.Pointer(&dest[0])
+	} else {
+		buf = unsafe.Pointer(&_zero)
+	}
+
+	rc, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR,
 		uintptr(unsafe.Pointer(pathBuf)),
 		uintptr(unsafe.Pointer(attrBuf)),
-		uintptr(unsafe.Pointer(&buf[0])),
-		uintptr(len(buf)),
+		uintptr(buf),
+		uintptr(len(dest)),
 		0,
 		0)
 
+	sz = int(rc)
 	if errno != 0 {
-		return nil, errno
+		err = errno
 	}
-	return buf[:sz], nil
+	return
 }
 
 // Lsetxattr sets the extended attribute on the path name

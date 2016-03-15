@@ -34,7 +34,8 @@ const XATTR_NAME_LMA = "trusted.lma" // copied from lustre_idl.h
 
 // GetFid retuns the lustre.Fid for the path name.
 func GetFid(path string) (*lustre.Fid, error) {
-	buf, err := xattr.Lgetxattr(path, XATTR_NAME_LMA)
+	buf := make([]byte, 64)
+	_, err := xattr.Lgetxattr(path, XATTR_NAME_LMA, buf)
 	if err != nil {
 		return nil, err
 	}
