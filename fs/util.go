@@ -11,6 +11,7 @@ import (
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/llapi"
+	"github.intel.com/hpdd/lustre/pkg/pool"
 	"github.intel.com/hpdd/lustre/status"
 )
 
@@ -61,46 +62,29 @@ func (root RootDir) Path() string {
 }
 
 type mountDir struct {
-	path   RootDir
-	lock   sync.Mutex
-	opened bool
-	f      *os.File
+	path RootDir
+	f    *os.File
 }
 
-// A cache of file handles per lustre mount point. Currently used to fetch the host Mdt for a file.
-// Could merge with RootDir and ensure RootDir is a singleton per client
-var openMount map[RootDir]*mountDir
+// A cache of file handles per lustre mount point. Currently used to fetch the host Mdt for a file,
+// and in future used with openat to open relative paths.
+// Could merge with RootDir and ensure RootDir is a singleton per client.
+var mountPools map[RootDir]*pool.Pool
+var mapLock sync.Mutex
 
 func init() {
-	openMount = make(map[RootDir]*mountDir)
-}
-
-func (m *mountDir) open() error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if !m.opened {
-		f, err := os.Open(string(m.path))
-		if err != nil {
-			return err
-		}
-
-		m.f = f
-		m.opened = true
-	}
-	return nil
+	mountPools = make(map[RootDir]*pool.Pool)
 }
 
 func (m *mountDir) String() string {
 	return string(m.path)
 }
 
+func (m *mountDir) Close() error {
+	return m.f.Close()
+}
+
 func (m *mountDir) GetMdt(in *lustre.Fid) (int, error) {
-	if !m.opened {
-		err := m.open()
-		if err != nil {
-			return 0, err
-		}
-	}
 	mdtIndex, err := llapi.GetMdtIndexByFid(int(m.f.Fd()), in)
 	if err != nil {
 		return 0, err
@@ -108,19 +92,55 @@ func (m *mountDir) GetMdt(in *lustre.Fid) (int, error) {
 	return mdtIndex, nil
 }
 
-func getOpenMount(root RootDir) *mountDir {
-	//	var mnt *mountDir
-	mnt, ok := openMount[root]
-	if !ok {
-		mnt = &mountDir{path: root}
-		openMount[root] = mnt
+func openMount(root RootDir) (mnt *mountDir, err error) {
+	m := &mountDir{path: root}
+	m.f, err = os.Open(string(m.path))
+	if err != nil {
+		return
 	}
-	return mnt
+	mnt = m
+	return
+}
+
+func getOpenMount(root RootDir) (mnt *mountDir, err error) {
+	mapLock.Lock()
+	defer mapLock.Unlock()
+	p, ok := mountPools[root]
+
+	if !ok {
+		alloc := func() (interface{}, error) {
+			return openMount(root)
+		}
+
+		p, err = pool.New(root.String(), 1, 10, alloc)
+		if err != nil {
+			return
+		}
+		mountPools[root] = p
+	}
+
+	o, err := p.Get()
+	if err != nil {
+		return
+	}
+	mnt = o.(*mountDir)
+	return
+}
+
+func putMount(mnt *mountDir) {
+	mapLock.Lock()
+	defer mapLock.Unlock()
+	p := mountPools[mnt.path]
+	p.Put(mnt)
 }
 
 // GetMdt returns the MDT index for a given Fid
 func GetMdt(root RootDir, f *lustre.Fid) (int, error) {
-	mnt := getOpenMount(root)
+	mnt, err := getOpenMount(root)
+	defer putMount(mnt)
+	if err != nil {
+		return 0, err
+	}
 	return mnt.GetMdt(f)
 }
 
