@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"syscall"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
@@ -101,7 +100,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 			var actions []*actionItem
 			nfds, err := unix.EpollWait(epfd, events, -1)
 			if err != nil {
-				if err == syscall.Errno(unix.EINTR) {
+				if err == unix.EINTR {
 					continue
 				}
 				alert.Fatal(err)
@@ -115,18 +114,23 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 					stopFile.Read(buf)
 					return
 				case cdt.GetFd():
-					actions, err = cdt.Recv()
-					if err != nil {
-						debug.Print(err)
-						return
+					for {
+						actions, err = cdt.Recv()
+						if err == unix.EAGAIN {
+							break
+						}
+						if err != nil {
+							debug.Print(err)
+							return
+						}
+						for _, ai := range actions {
+							ch <- ai
+						}
 					}
 				}
 
 			}
 
-			for _, ai := range actions {
-				ch <- ai
-			}
 		}
 	}()
 
