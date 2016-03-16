@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"syscall"
 	"unsafe"
 
 	"github.intel.com/hpdd/logging/alert"
@@ -26,6 +25,7 @@ import (
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/pkg/xattr"
+	"golang.org/x/sys/unix"
 )
 
 // Expose the internal constants for external users
@@ -185,7 +185,7 @@ func (aih *actionItemHandle) copyLovMd() error {
 	if err != nil {
 		return err
 	}
-	defer syscall.Close(int(fd))
+	defer unix.Close(int(fd))
 	err = xattr.Fsetxattr(fd, "lustre.lov", buf[:lumSize], xattr.CREATE)
 	if err != nil {
 		return err
@@ -213,12 +213,7 @@ func (ai *actionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 	}
 	var err error
 	ai.mu.Lock()
-	ai.hcap, err = llapi.HsmActionBegin(
-		ai.cdt.hcp,
-		&ai.hai,
-		mdtIndex,
-		openFlags,
-		isError)
+	ai.hcap, err = llapi.HsmActionBegin(ai.cdt.hcp, &ai.hai, mdtIndex, openFlags, isError)
 	ai.mu.Unlock()
 	if err != nil {
 		ai.mu.Lock()
