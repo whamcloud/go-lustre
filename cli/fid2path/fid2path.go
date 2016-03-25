@@ -7,24 +7,27 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 )
 
 var (
-	link    int
-	mnt     string
-	verbose bool
+	link     int
+	mnt      string
+	verbose  bool
+	absolute bool
 )
 
 func init() {
-	flag.IntVar(&link, "link", -1, "Specific link to display")
-	flag.StringVar(&mnt, "mnt", "", "Lustre mount point.")
-	flag.BoolVar(&verbose, "f", false, "always print filenames")
+	flag.IntVar(&link, "link", 0, "Specific link to display, -1 for all available.")
+	flag.StringVar(&mnt, "mnt", "", "Lustre mount point, defaults to current directory.")
+	flag.BoolVar(&verbose, "v", false, "Display fid and path.")
+	flag.BoolVar(&absolute, "a", false, "Print absolute paths.")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [--link] [--mnt] <fid>...\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s [--link #] <fid>...\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 }
@@ -33,14 +36,19 @@ func main() {
 	flag.Parse()
 
 	if mnt == "" {
-		fmt.Fprintln(os.Stderr, "! The -mnt <mntpoint> option was not specified.")
-		flag.Usage()
-		os.Exit(1)
+		m, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "! The -mnt <mntpoint> option was not specified.")
+			flag.Usage()
+			os.Exit(1)
+		}
+		mnt = m
 	}
 
 	root, err := fs.MountRoot(mnt)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "%v", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		flag.Usage()
 		os.Exit(1)
 	}
 
@@ -50,6 +58,7 @@ func main() {
 			fmt.Println(err)
 			continue
 		}
+		var paths []string
 		if link >= 0 {
 			// Make sure to only fetch a single path if user requests it
 			p, err := fs.FidPathname(root, fid, link)
@@ -57,22 +66,24 @@ func main() {
 				fmt.Println(err)
 				continue
 			}
-			if flag.NArg() > 1 || verbose {
-				fmt.Printf("%s: ", fid)
-			}
-			fmt.Println(p)
+			paths = []string{p}
 		} else {
-			paths, err := fs.FidPathnames(root, fid)
+			var err error
+			paths, err = fs.FidPathnames(root, fid)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
-			for _, p := range paths {
-				if flag.NArg() > 1 || verbose {
-					fmt.Printf("%s: ", fid)
-				}
-				fmt.Println(p)
+		}
+
+		for _, p := range paths {
+			if verbose {
+				fmt.Printf("%s ", fid)
 			}
+			if absolute {
+				p = path.Join(root.Path(), p)
+			}
+			fmt.Println(p)
 		}
 	}
 }
