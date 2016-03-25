@@ -51,10 +51,12 @@ func main() {
 		l.Free()
 
 		// Fetch directly from EA
-		lovBuf, err := xattr.Lgetxattr(name, "lustre.lov")
+		b1 := make([]byte, 256)
+		sz, err := xattr.Lgetxattr(name, "lustre.lov", b1)
 		if err != nil {
 			log.Fatal(err)
 		}
+		lovBuf := b1[0:sz]
 		fmt.Println("\nDirectly from lustre.lov EA")
 		lum := (*C.struct_lov_user_md)(unsafe.Pointer(&lovBuf[0]))
 		fmt.Printf("lmm_magic:          0x%x\n", lum.lmm_magic)
