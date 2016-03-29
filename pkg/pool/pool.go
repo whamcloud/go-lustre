@@ -2,7 +2,6 @@ package pool
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -89,11 +88,9 @@ func (p *Pool) addOrWait() (interface{}, error) {
 			return nil, err
 		}
 		p.allocated++
-		fmt.Printf("pool: allocated %v\n", res)
 		p.resources <- res
 	}
 	p.mu.Unlock()
-	defer fmt.Println("wakeup")
 	return <-p.resources, nil
 }
 
