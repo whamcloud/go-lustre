@@ -1,7 +1,6 @@
 package llapi
 
 //
-// #cgo LDFLAGS: -llustreapi
 // #include <fcntl.h>
 // #include <stdlib.h>
 // #include <lustre/lustreapi.h>

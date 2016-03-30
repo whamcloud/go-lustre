@@ -4,7 +4,6 @@ package llapi
 // as well as functions for converting between native C Fids and pure Go Fids.
 
 //
-// #cgo LDFLAGS: -llustreapi
 // #include <stdlib.h>
 // #include <lustre/lustreapi.h>
 //
