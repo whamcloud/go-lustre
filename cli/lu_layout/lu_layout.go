@@ -5,7 +5,6 @@ package main
 #include <stdlib.h>
 #include <lustre/lustreapi.h>
 #include <lustre/lustreapi.h>
-
 */
 import "C"
 
@@ -16,7 +15,10 @@ import (
 	"os"
 	"unsafe"
 
+	"github.intel.com/hpdd/lustre/fs"
+	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/llapi/layout"
+	"github.intel.com/hpdd/lustre/luser"
 	"github.intel.com/hpdd/lustre/pkg/xattr"
 )
 
@@ -33,6 +35,9 @@ func init() {
 		flag.PrintDefaults()
 	}
 }
+
+// This is currently a testbed for various methods of fetching
+// metadata from lustre.
 
 func main() {
 	flag.Parse()
@@ -78,11 +83,38 @@ func main() {
 		if rc < 0 {
 			log.Fatal("null lum")
 		}
-		fmt.Println("\nUsing IOC_MDC_GETSTRIPE via llapi_file_get_stripe")
+		fmt.Println("\nUsing IOC_MDC_GETFILESTRIPE via llapi_file_get_stripe")
 		fmt.Printf("lmm_magic:          0x%x\n", lum.lmm_magic)
 		fmt.Printf("lmm_stripe_count:   %d\n", lum.lmm_stripe_count)
 		fmt.Printf("lmm_stripe_size:    %d\n", lum.lmm_stripe_size)
 		fmt.Printf("lmm_pattern:        0x%x\n", lum.lmm_pattern)
+
+		root, err := fs.MountRoot(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fid, err := luser.GetFid(name)
+		if err != nil {
+			log.Fatalf("%s: %v", name, err)
+		}
+		// Get MDT index using llapi
+		idx, err := fs.GetMdt(root, fid)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("\nMDT index using llapi")
+		fmt.Printf("mdt index: %d\n", idx)
+
+		f, _ := root.Open()
+		defer f.Close()
+
+		idx2, err := llapi.GetMdtIndex2(f, fid)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("\nMDT index using ioctl")
+		fmt.Printf("mdt index: %d\n", idx2)
 	}
 
 }

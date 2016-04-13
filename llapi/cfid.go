@@ -3,13 +3,14 @@ package llapi
 // This file contains code for interfacing with liblustreapi's Fid functions
 // as well as functions for converting between native C Fids and pure Go Fids.
 
-//
+// #include <sys/ioctl.h>
 // #include <stdlib.h>
 // #include <lustre/lustreapi.h>
 //
 import "C"
 import (
 	"fmt"
+	"os"
 	"unsafe"
 
 	"github.intel.com/hpdd/lustre"
@@ -88,4 +89,8 @@ func GetMdtIndexByFid(mountFd int, f *lustre.Fid) (int, error) {
 	}
 
 	return int(mdtIndex), nil
+}
+
+func GetMdtIndex2(f *os.File, fid *lustre.Fid) (int, error) {
+	return ioctl(int(f.Fd()), C.LL_IOC_FID2MDTIDX, uintptr(unsafe.Pointer(fid)))
 }

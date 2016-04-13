@@ -1,15 +1,13 @@
 package xattr
 
-// #include <sys/xattr.h>
-import "C"
 import (
 	"syscall"
 	"unsafe"
 )
 
 const (
-	CREATE  = C.XATTR_CREATE
-	REPLACE = C.XATTR_REPLACE
+	CREATE  = 1 // C.XATTR_CREATE
+	REPLACE = 2 // C.XATTR_REPLACE
 )
 
 var _zero uintptr
@@ -35,6 +33,35 @@ func Lgetxattr(path, attr string, dest []byte) (sz int, err error) {
 
 	rc, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR,
 		uintptr(unsafe.Pointer(pathBuf)),
+		uintptr(unsafe.Pointer(attrBuf)),
+		uintptr(buf),
+		uintptr(len(dest)),
+		0,
+		0)
+
+	sz = int(rc)
+	if errno != 0 {
+		err = errno
+	}
+	return
+}
+
+// Fgetxattr returns the extended attribute from the path name.
+func Fgetxattr(fd int, attr string, dest []byte) (sz int, err error) {
+	attrBuf, err := syscall.BytePtrFromString(attr)
+	if err != nil {
+		return
+	}
+
+	var buf unsafe.Pointer
+	if len(dest) > 0 {
+		buf = unsafe.Pointer(&dest[0])
+	} else {
+		buf = unsafe.Pointer(&_zero)
+	}
+
+	rc, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR,
+		uintptr(fd),
 		uintptr(unsafe.Pointer(attrBuf)),
 		uintptr(buf),
 		uintptr(len(dest)),
@@ -80,7 +107,7 @@ func Lsetxattr(path, attr string, value []byte, flags int) (err error) {
 }
 
 // Lsetxattr sets the extended attribute on the path name
-func Fsetxattr(fd uintptr, attr string, value []byte, flags int) error {
+func Fsetxattr(fd int, attr string, value []byte, flags int) error {
 	attrBuf, err := syscall.BytePtrFromString(attr)
 	if err != nil {
 		return err
@@ -89,7 +116,7 @@ func Fsetxattr(fd uintptr, attr string, value []byte, flags int) error {
 	valuePtr := &value[0]
 
 	_, _, errno := syscall.Syscall6(syscall.SYS_FSETXATTR,
-		fd,
+		uintptr(fd),
 		uintptr(unsafe.Pointer(attrBuf)),
 		uintptr(unsafe.Pointer(valuePtr)),
 		uintptr(len(value)),

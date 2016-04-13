@@ -11,17 +11,18 @@ import (
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/llapi"
+	"github.intel.com/hpdd/lustre/luser"
 	"github.intel.com/hpdd/lustre/pkg/pool"
 	"github.intel.com/hpdd/lustre/status"
 )
 
 // Version returns the current Lustre version string.
 func Version() (string, error) {
-	v, err := llapi.GetVersion()
+	v, err := luser.GetVersion()
 	if err != nil {
 		return "", fmt.Errorf("llapi.GetVersion() failed: %s", err)
 	}
-	return v, nil
+	return v.Lustre, nil
 }
 
 // MountID returns the local Lustre client indentifier for that mountpoint. This can
@@ -38,27 +39,33 @@ func MountID(mountPath string) (*status.LustreClient, error) {
 }
 
 // RootDir represent a the mount point of a Lustre filesystem.
-type RootDir string
+type RootDir struct {
+	path string
+}
 
 // IsValid indicates whether or not the RootDir is actually the
 // root of a Lustre filesystem.
 func (root RootDir) IsValid() bool {
-	return isDotLustre(root.Join(".lustre"))
+	return isDotLustre(path.Join(root.path, ".lustre"))
 }
 
 // Join args with root dir to create an absolute path.
 // FIXME: replace this with OpenAt and friends
 func (root RootDir) Join(args ...string) string {
-	return path.Join(string(root), path.Join(args...))
+	return path.Join(root.path, path.Join(args...))
 }
 
 func (root RootDir) String() string {
-	return string(root)
+	return root.path
 }
 
 // Path returns the path for the root
 func (root RootDir) Path() string {
-	return root.String()
+	return root.path
+}
+
+func (root RootDir) Open() (*os.File, error) {
+	return os.Open(root.path)
 }
 
 type mountDir struct {
@@ -77,7 +84,7 @@ func init() {
 }
 
 func (m *mountDir) String() string {
-	return string(m.path)
+	return m.path.String()
 }
 
 func (m *mountDir) Close() error {
@@ -94,7 +101,7 @@ func (m *mountDir) GetMdt(in *lustre.Fid) (int, error) {
 
 func openMount(root RootDir) (mnt *mountDir, err error) {
 	m := &mountDir{path: root}
-	m.f, err = os.Open(string(m.path))
+	m.f, err = root.Open()
 	if err != nil {
 		return
 	}
@@ -148,12 +155,12 @@ func GetMdt(root RootDir, f *lustre.Fid) (int, error) {
 type ID RootDir
 
 func (id ID) String() string {
-	return string(id)
+	return id.path
 }
 
 // Path returns the path for the root
 func (id ID) Path() (string, error) {
-	return string(id), nil
+	return id.path, nil
 }
 
 // Root returns the root dir for the root
@@ -219,17 +226,17 @@ func findRoot(dev uint64, pathname string) string {
 func MountRoot(path string) (RootDir, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return RootDir(""), err
+		return RootDir{}, err
 	}
 	fi, err := os.Lstat(absPath)
 	if err != nil {
-		return RootDir(""), err
+		return RootDir{}, err
 	}
 	mnt := findRoot(rootDevice(fi), absPath)
 	if mnt == "" {
-		return RootDir(""), fmt.Errorf("%s not a Lustre filesystem", path)
+		return RootDir{}, fmt.Errorf("%s not a Lustre filesystem", path)
 	}
-	return RootDir(mnt), nil
+	return RootDir{path: mnt}, nil
 }
 
 // findRelPah returns pathname relative to root directory for the lustre filesystem containing
@@ -259,12 +266,12 @@ func MountRelPath(pathname string) (RootDir, string, error) {
 	pathname = filepath.Clean(pathname)
 	fi, err := os.Lstat(pathname)
 	if err != nil {
-		return RootDir(""), "", err
+		return RootDir{}, "", err
 	}
 
 	root, relPath := findRelPath(rootDevice(fi), pathname, []string{})
 	if root == "" {
-		return RootDir(""), "", fmt.Errorf("%s not a Lustre filesystem", pathname)
+		return RootDir{}, "", fmt.Errorf("%s not a Lustre filesystem", pathname)
 	}
-	return RootDir(root), relPath, nil
+	return RootDir{path: root}, relPath, nil
 }

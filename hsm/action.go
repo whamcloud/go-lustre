@@ -142,7 +142,7 @@ type (
 		Fid() *lustre.Fid
 		Cookie() uint64
 		DataFid() (*lustre.Fid, error)
-		Fd() (uintptr, error)
+		Fd() (int, error)
 		Offset() uint64
 		ArchiveID() uint
 		Length() uint64
@@ -183,7 +183,7 @@ func (aih *actionItem) copyLovMd() error {
 	if err != nil {
 		return err
 	}
-	defer unix.Close(int(fd))
+	defer unix.Close(fd)
 	err = xattr.Fsetxattr(fd, "lustre.lov", buf[:lumSize], xattr.CREATE)
 	if err != nil {
 		return err
@@ -297,7 +297,7 @@ func (ai *actionItem) DataFid() (*lustre.Fid, error) {
 
 // Fd returns the file descriptor of the DataFid.
 // If used, this Fd must be closed prior to calling End.
-func (ai *actionItem) Fd() (uintptr, error) {
+func (ai *actionItem) Fd() (int, error) {
 	ai.mu.Lock()
 	defer ai.mu.Unlock()
 	fd, err := llapi.HsmActionGetFd(ai.hcap)

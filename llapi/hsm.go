@@ -238,10 +238,10 @@ func HsmActionGetDataFid(hcap *HsmCopyActionPrivate) (*lustre.Fid, error) {
 
 // HsmActonGetFd returns filedescriptor of the data fid. The data fid
 // can also be opened directly, so this isn't strictly necessary.
-func HsmActionGetFd(hcap *HsmCopyActionPrivate) (uintptr, error) {
+func HsmActionGetFd(hcap *HsmCopyActionPrivate) (int, error) {
 	rc, err := C.llapi_hsm_action_get_fd((*C.struct_hsm_copyaction_private)(hcap))
 	if err := isError(rc, err); err != nil {
 		return 0, err
 	}
-	return uintptr(rc), err
+	return int(rc), err
 }

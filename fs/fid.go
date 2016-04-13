@@ -37,7 +37,7 @@ func LookupFid(path string) (*lustre.Fid, error) {
 
 // FidPath returns the open-by-fid path for a fid.
 func FidPath(mnt RootDir, f *lustre.Fid) string {
-	return path.Join(string(mnt), FidRelativePath(f))
+	return path.Join(mnt.Path(), FidRelativePath(f))
 }
 
 // FidRelativePath returns the relattive open-by-fid path for a fid.
@@ -55,7 +55,7 @@ func FidRelativePath(f *lustre.Fid) string {
 //
 func FidPathname(mnt RootDir, f *lustre.Fid, linkno int) (string, error) {
 	var recno int64
-	return llapi.Fid2Path(string(mnt), f, &recno, &linkno)
+	return llapi.Fid2Path(mnt.Path(), f, &recno, &linkno)
 }
 
 // FidPathnames returns all paths for a fid.
@@ -74,13 +74,13 @@ func fidPathnames(mnt RootDir, f *lustre.Fid, absPath bool) ([]string, error) {
 	var paths = make([]string, 0)
 	for prevLinkno < linkno {
 		prevLinkno = linkno
-		p, err := llapi.Fid2Path(string(mnt), f, &recno, &linkno)
+		p, err := llapi.Fid2Path(mnt.Path(), f, &recno, &linkno)
 		if err != nil {
 			return paths, err
 		}
 
 		if absPath {
-			p = path.Join(string(mnt), p)
+			p = path.Join(mnt.Path(), p)
 		}
 		paths = append(paths, p)
 
