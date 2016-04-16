@@ -13,13 +13,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"unsafe"
+	"syscall"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/lustre/llapi/layout"
 	"github.intel.com/hpdd/lustre/luser"
-	"github.intel.com/hpdd/lustre/pkg/xattr"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -39,55 +38,68 @@ func init() {
 // This is currently a testbed for various methods of fetching
 // metadata from lustre.
 
+func printLayout(layout *llapi.DataLayout) {
+	fmt.Printf("lmm_stripe_count:   %d\n", layout.StripeCount)
+	fmt.Printf("lmm_stripe_size:    %d\n", layout.StripeSize)
+	fmt.Printf("lmm_pattern:        0x%x\n", layout.StripePattern)
+	fmt.Printf("lmm_layout_gen:     %d\n", layout.Generation)
+	fmt.Printf("lmm_stripe_offset:  %d\n", layout.StripeOffset)
+	if len(layout.Objects) > 0 {
+		fmt.Printf("obdidx objid  objid group\n")
+		for _, o := range layout.Objects {
+			fmt.Printf("%12d %12d   0x%x    0x%x\n", o.Index, o.Object.Oid, o.Object.Oid, o.Object.Seq)
+		}
+	}
+}
+
+func printDirLayout(layout *llapi.DataLayout) {
+	fmt.Printf("lmm_stripe_count:   %d\n", layout.StripeCount)
+	fmt.Printf("lmm_stripe_size:    %d\n", layout.StripeSize)
+	fmt.Printf("lmm_pattern:        0x%x\n", layout.StripePattern)
+	fmt.Printf("lmm_stripe_offset:  %d\n", layout.StripeOffset)
+}
+
 func main() {
 	flag.Parse()
 
 	for _, name := range flag.Args() {
-		// Use llapi.layout to fetch lov metadata (uses lustre.lov EA)
-		l, err := layout.GetByPath(name)
+		fi, err := os.Stat(name)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			continue
 		}
-		// index, _ := l.OstIndex(0)
-		fmt.Println("Using llapi_layout_get_by_path")
-		fmt.Printf("lmm_stripe_count:   %d\n", l.StripeCount())
-		fmt.Printf("lmm_stripe_size:    %d\n", l.StripeSize())
-		fmt.Printf("lmm_pattern:        0x%x\n", l.Pattern())
-		l.Free()
 
-		// Fetch directly from EA
-		b1 := make([]byte, 256)
-		sz, err := xattr.Lgetxattr(name, "lustre.lov", b1)
-		if err != nil {
-			log.Fatal(err)
-		}
-		lovBuf := b1[0:sz]
-		fmt.Println("\nDirectly from lustre.lov EA")
-		lum := (*C.struct_lov_user_md)(unsafe.Pointer(&lovBuf[0]))
-		fmt.Printf("lmm_magic:          0x%x\n", lum.lmm_magic)
-		fmt.Printf("lmm_stripe_count:   %d\n", lum.lmm_stripe_count)
-		fmt.Printf("lmm_stripe_size:    %d\n", lum.lmm_stripe_size)
-		fmt.Printf("lmm_pattern:        0x%x\n", lum.lmm_pattern)
+		if fi.Mode().IsDir() {
+			layout, err := llapi.DirDataLayout(name)
+			if err != nil {
+				errno, ok := err.(*os.SyscallError)
+				if !ok || errno.Err != syscall.Errno(unix.ENODATA) {
+					log.Printf("Unable to fetch directory layout: %v ", err)
+				}
 
-		// using IOC_MDC_GETSTRIPE (like lfs does)
-		cPath := C.CString(name)
-		maxLumSize := C.lov_user_md_size(C.LOV_MAX_STRIPE_COUNT, C.LOV_USER_MAGIC_V3)
-		buf := make([]byte, maxLumSize)
-		lum = (*C.struct_lov_user_md)(unsafe.Pointer(&buf[0]))
+			} else {
+				fmt.Println("\nDirectory layout:")
+				printDirLayout(layout)
+			}
+		} else {
+			// Fetch directly from EA
+			layoutEA, err := llapi.FileDataLayoutEA(name)
+			if err != nil {
+				log.Printf("Unable to open EA: %v", err)
+			} else {
+				fmt.Println("\nDirectly from lustre.lov EA")
+				printLayout(layoutEA)
+			}
 
-		rc, err := C.llapi_file_get_stripe(cPath, lum)
-		C.free(unsafe.Pointer(cPath))
-		if err != nil {
-			log.Fatal(err)
+			// using IOC_MDC_GETSTRIPE (like lfs does)
+			layout, err := llapi.FileDataLayout(name)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Println("\nUsing IOC_MDC_GETFILESTRIPE via llapi_file_get_stripe")
+			printLayout(layout)
 		}
-		if rc < 0 {
-			log.Fatal("null lum")
-		}
-		fmt.Println("\nUsing IOC_MDC_GETFILESTRIPE via llapi_file_get_stripe")
-		fmt.Printf("lmm_magic:          0x%x\n", lum.lmm_magic)
-		fmt.Printf("lmm_stripe_count:   %d\n", lum.lmm_stripe_count)
-		fmt.Printf("lmm_stripe_size:    %d\n", lum.lmm_stripe_size)
-		fmt.Printf("lmm_pattern:        0x%x\n", lum.lmm_pattern)
 
 		root, err := fs.MountRoot(name)
 		if err != nil {
@@ -97,24 +109,26 @@ func main() {
 		if err != nil {
 			log.Fatalf("%s: %v", name, err)
 		}
+
 		// Get MDT index using llapi
 		idx, err := fs.GetMdt(root, fid)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		fmt.Println("\nMDT index using llapi")
+		//		fmt.Println("\nMDT index using llapi")
 		fmt.Printf("mdt index: %d\n", idx)
 
-		f, _ := root.Open()
-		defer f.Close()
+		/*		f, _ := root.Open()
+				defer f.Close()
 
-		idx2, err := llapi.GetMdtIndex2(f, fid)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("\nMDT index using ioctl")
-		fmt.Printf("mdt index: %d\n", idx2)
+				idx2, err := llapi.GetMdtIndex2(f, fid)
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println("\nMDT index using ioctl")
+				fmt.Printf("mdt index: %d\n", idx2)
+		*/
 	}
 
 }

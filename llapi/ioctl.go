@@ -9,7 +9,7 @@ import (
 func ioctl(fd int, request, argp uintptr) (int, error) {
 	rc, _, errorp := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), request, argp)
 	if rc < 0 || errorp != 0 {
-		return -1, os.NewSyscallError("ioctl", errorp)
+		return 0, os.NewSyscallError("ioctl", errorp)
 	}
 	return int(rc), nil
 }

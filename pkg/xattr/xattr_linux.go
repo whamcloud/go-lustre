@@ -60,7 +60,7 @@ func Fgetxattr(fd int, attr string, dest []byte) (sz int, err error) {
 		buf = unsafe.Pointer(&_zero)
 	}
 
-	rc, _, errno := syscall.Syscall6(syscall.SYS_LGETXATTR,
+	rc, _, errno := syscall.Syscall6(syscall.SYS_FGETXATTR,
 		uintptr(fd),
 		uintptr(unsafe.Pointer(attrBuf)),
 		uintptr(buf),
