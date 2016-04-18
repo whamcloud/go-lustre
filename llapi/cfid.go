@@ -60,6 +60,7 @@ func (e *FidPathError) Error() string {
 }
 
 // Fid2Path returns next path for given fid.
+// This returns relative paths from the root of the filesystem.
 func Fid2Path(device string, f *lustre.Fid, recno *int64, linkno *int) (string, error) {
 	var buffer [4096]C.char
 	var clinkno = C.int(*linkno)
@@ -76,6 +77,11 @@ func Fid2Path(device string, f *lustre.Fid, recno *int64, linkno *int) (string, 
 		return "", &FidPathError{f, int(rc), err}
 	}
 	p := C.GoString(&buffer[0])
+
+	// This is a relative path, so make sure it doesn't start with a '/'
+	if p[0] == '/' {
+		p = p[1:]
+	}
 	return p, err
 }
 
