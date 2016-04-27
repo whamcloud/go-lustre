@@ -16,11 +16,14 @@ import (
 )
 
 func getEntries(fp *C.FILE) ([]*Entry, error) {
-	var buffer [4096]C.char
+	bufLen := 4096
+	buffer := C.malloc(C.size_t(bufLen))
+	defer C.free(buffer)
+
 	var mntent C.struct_mntent
 	var entries []*Entry
 	for {
-		ret, err := C.getmntent_r(fp, &mntent, &buffer[0], C.int(len(buffer)))
+		ret, err := C.getmntent_r(fp, &mntent, (*C.char)(buffer), C.int(bufLen))
 		if err != nil {
 			return nil, err
 		}
