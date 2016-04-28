@@ -25,6 +25,7 @@ import (
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/pkg/xattr"
+	"github.intel.com/hpdd/lustre/status"
 	"golang.org/x/sys/unix"
 )
 
@@ -201,7 +202,7 @@ func (ai *actionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 	setLov := false
 	if ai.Action() == RESTORE && !isError {
 		var err error
-		mdtIndex, err = fs.GetMdt(ai.cdt.root, ai.Fid())
+		mdtIndex, err = status.GetMdt(ai.cdt.root, ai.Fid())
 		if err != nil {
 
 			return nil, err

@@ -5,6 +5,7 @@ import (
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
+	"github.intel.com/hpdd/lustre/status"
 	"github.intel.com/hpdd/test/harness"
 
 	. "github.com/onsi/ginkgo"
@@ -25,7 +26,7 @@ var _ = Describe("In the FID Utility Library", func() {
 			mnt, err := fs.MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
-			testFile, err = ioutil.TempFile(string(mnt), "test")
+			testFile, err = ioutil.TempFile(mnt.Path(), "test")
 			Ω(err).ShouldNot(HaveOccurred())
 			testFile.Close()
 		})
@@ -49,7 +50,7 @@ var _ = Describe("In the FID Utility Library", func() {
 				fid, err := fs.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
-				name, err := fs.FidPathname(mnt, fid, 0)
+				name, err := status.FidPathname(mnt, fid, 0)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Expect(name).To(Equal(path.Base(testFile.Name())))
@@ -61,7 +62,7 @@ var _ = Describe("In the FID Utility Library", func() {
 				fid, err := fs.LookupFid(testFile.Name())
 				Ω(err).ShouldNot(HaveOccurred())
 
-				names, err := fs.FidPathnames(mnt, fid)
+				names, err := status.FidPathnames(mnt, fid)
 				Ω(err).ShouldNot(HaveOccurred())
 				Expect(names[0]).To(Equal(path.Base(testFile.Name())))
 			})

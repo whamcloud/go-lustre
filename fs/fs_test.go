@@ -5,6 +5,7 @@ import (
 	"path"
 
 	"github.intel.com/hpdd/lustre/fs"
+	"github.intel.com/hpdd/lustre/status"
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/utils"
 
@@ -37,7 +38,7 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountId()", func() {
 		It("should not return an error, given a valid mount.", func() {
-			id, err := fs.MountID(harness.ClientMount())
+			id, err := status.Client(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Expect(id.FsName).ToNot(Equal(""))
@@ -47,7 +48,9 @@ var _ = Describe("In the Lustre API functions,", func() {
 
 	Describe("MountRoot()", func() {
 		It("should not fail, given a valid path.", func() {
-			Expect(fs.MountRoot(harness.ClientMount())).To(BeEquivalentTo(harness.ClientMount()))
+			root, err := fs.MountRoot(harness.ClientMount())
+			Ω(err).ShouldNot(HaveOccurred())
+			Expect(root.Path()).To(BeEquivalentTo(harness.ClientMount()))
 		})
 
 		It("should not fail, given a valid file in lustre", func() {
@@ -65,8 +68,8 @@ var _ = Describe("In the Lustre API functions,", func() {
 			mnt, relPath, err := fs.MountRelPath(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(string(mnt)).To(Equal(harness.ClientMount()))
-			Expect(string(relPath)).To(Equal(""))
+			Expect(mnt.Path()).To(Equal(harness.ClientMount()))
+			Expect(relPath).To(Equal(""))
 		})
 
 		It("should fail, given a non-Lustre pathname.", func() {
@@ -78,8 +81,8 @@ var _ = Describe("In the Lustre API functions,", func() {
 			mnt, relPath, err := fs.MountRelPath(path.Join(harness.ClientMount(), testFiles[0]))
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Expect(string(mnt)).To(Equal(harness.ClientMount()))
-			Expect(string(relPath)).To(Equal(testFiles[0]))
+			Expect(mnt.Path()).To(Equal(harness.ClientMount()))
+			Expect(relPath).To(Equal(testFiles[0]))
 		})
 	})
 

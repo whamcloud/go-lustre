@@ -11,6 +11,7 @@ import (
 
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
+	"github.intel.com/hpdd/lustre/status"
 )
 
 var (
@@ -61,7 +62,7 @@ func main() {
 		var paths []string
 		if link >= 0 {
 			// Make sure to only fetch a single path if user requests it
-			p, err := fs.FidPathname(root, fid, link)
+			p, err := status.FidPathname(root, fid, link)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -69,7 +70,7 @@ func main() {
 			paths = []string{p}
 		} else {
 			var err error
-			paths, err = fs.FidPathnames(root, fid)
+			paths, err = status.FidPathnames(root, fid)
 			if err != nil {
 				fmt.Println(err)
 				continue

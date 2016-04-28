@@ -10,7 +10,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/pkg/mntent"
 	"github.intel.com/hpdd/lustre/status"
 )
@@ -104,7 +103,7 @@ func main() {
 		log.Fatal("missing -mnt paramter")
 	}
 
-	c, err := fs.MountID(mountPath)
+	c, err := status.Client(mountPath)
 	if err != nil {
 		fmt.Println(err)
 		return

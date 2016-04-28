@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.intel.com/hpdd/lustre/llapi"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -21,6 +23,19 @@ type LustreClient struct {
 
 func (c *LustreClient) String() string {
 	return c.FsName + "-" + c.ClientID
+}
+
+// Client returns the local Lustre client identifier for that mountpoint. This can
+// be used to determine which entries in /proc/fs/lustre as associated with
+// that client.
+func Client(mountPath string) (*LustreClient, error) {
+	id, err := llapi.GetName(mountPath)
+	if err != nil {
+		return nil, err
+	}
+	elem := strings.Split(id, "-")
+	c := LustreClient{FsName: elem[0], ClientID: elem[1]}
+	return &c, nil
 }
 
 func (c *LustreClient) getClientDevices(module string, cli string) []string {

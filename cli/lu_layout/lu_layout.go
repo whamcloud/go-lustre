@@ -18,6 +18,7 @@ import (
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/luser"
+	"github.intel.com/hpdd/lustre/status"
 	"golang.org/x/sys/unix"
 )
 
@@ -111,7 +112,7 @@ func main() {
 		}
 
 		// Get MDT index using llapi
-		idx, err := fs.GetMdt(root, fid)
+		idx, err := status.GetMdt(root, fid)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.intel.com/hpdd/lustre/changelog"
-	"github.intel.com/hpdd/lustre/fs"
+	"github.intel.com/hpdd/lustre/status"
 )
 
 var printTimestamp = false
@@ -87,7 +87,7 @@ func main() {
 	} else {
 		if len(flag.Args()) > 0 {
 			mnt := flag.Args()[0]
-			c, err := fs.MountID(mnt)
+			c, err := status.Client(mnt)
 			if err != nil {
 				log.Fatal(err)
 			}

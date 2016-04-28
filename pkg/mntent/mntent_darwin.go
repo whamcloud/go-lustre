@@ -1,9 +1,9 @@
 package mntent
 
-import "errors"
+import "github.intel.com/hpdd/lustre"
 
 // GetMounted returns a slide of filesystem entries from
 // the mounted fs table.
 func GetMounted() (Entries, error) {
-	return nil, errors.New("not implemented")
+	return nil, lustre.ErrUnimplemented
 }

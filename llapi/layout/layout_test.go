@@ -37,7 +37,7 @@ var _ = Describe("In the layout library", func() {
 			mnt, err := fs.MountRoot(harness.ClientMount())
 			Ω(err).ShouldNot(HaveOccurred())
 
-			testFile, err = ioutil.TempFile(string(mnt), "test")
+			testFile, err = ioutil.TempFile(mnt.Path(), "test")
 			Ω(err).ShouldNot(HaveOccurred())
 			testFile.Close()
 		})
