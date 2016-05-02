@@ -126,27 +126,27 @@ func ChangelogClear(device string, token string, endRec int64) error {
 
 // Changelog Types
 const (
-	CL_MARK     = 0
-	CL_CREATE   = 1  /* namespace */
-	CL_MKDIR    = 2  /* namespace */
-	CL_HARDLINK = 3  /* namespace */
-	CL_SOFTLINK = 4  /* namespace */
-	CL_MKNOD    = 5  /* namespace */
-	CL_UNLINK   = 6  /* namespace */
-	CL_RMDIR    = 7  /* namespace */
-	CL_RENAME   = 8  /* namespace */
-	CL_EXT      = 9  /* namespace extended record (2nd half of rename) */
-	CL_OPEN     = 10 /* not currently used */
-	CL_CLOSE    = 11 /* may be written to log only with mtime change */
-	CL_LAYOUT   = 12 /* file layout/striping modified */
-	CL_TRUNC    = 13
-	CL_SETATTR  = 14
-	CL_XATTR    = 15
-	CL_HSM      = 16 /* HSM specific events, see flags */
-	CL_MTIME    = 17 /* Precedence: setattr > mtime > ctime > atime */
-	CL_CTIME    = 18
-	CL_ATIME    = 19
-	CL_LAST
+	OpMark     = C.CL_MARK
+	OpCreate   = C.CL_CREATE   /* namespace */
+	OpMkdir    = C.CL_MKDIR    /* namespace */
+	OpHardlink = C.CL_HARDLINK /* namespace */
+	OpSoftlink = C.CL_SOFTLINK /* namespace */
+	OpMknod    = C.CL_MKNOD    /* namespace */
+	OpUnlink   = C.CL_UNLINK   /* namespace */
+	OpRmdir    = C.CL_RMDIR    /* namespace */
+	OpRename   = C.CL_RENAME   /* namespace */
+	OpExt      = C.CL_EXT      /* namespace extended record (2nd half of rename) */
+	OpOpen     = C.CL_OPEN     /* not currently used */
+	OpClose    = C.CL_CLOSE    /* may be written to log only with mtime change */
+	OpLayout   = C.CL_LAYOUT   /* file layout/striping modified */
+	OpTrunc    = C.CL_TRUNC
+	OpSetattr  = C.CL_SETATTR
+	OpXattr    = C.CL_XATTR
+	OpHSM      = C.CL_HSM   /* HSM specific events, see flags */
+	OpMtime    = C.CL_MTIME /* Precedence: setattr > mtime > ctime > atime */
+	OpCtime    = C.CL_CTIME
+	OpAtime    = C.CL_ATIME
+	OpLast     = C.CL_LAST
 )
 
 // ChangelogRecord is a record in a Changelog
@@ -263,7 +263,7 @@ func (r *ChangelogRecord) flagStrings() []string {
 	var flagStrings []string
 
 	switch r.rType {
-	case C.CL_HSM:
+	case OpHSM:
 		event := HsmEvent(C.hsm_get_cl_event(C.__u16(r.flags)))
 		flagStrings = append(flagStrings, event.String())
 		hsmFlags := C.hsm_get_cl_flags(C.int(r.flags))
@@ -271,7 +271,7 @@ func (r *ChangelogRecord) flagStrings() []string {
 		case C.CLF_HSM_DIRTY:
 			flagStrings = append(flagStrings, "Dirty")
 		}
-	case C.CL_UNLINK:
+	case OpUnlink:
 		last, exists := r.IsLastUnlink()
 		if last {
 			flagStrings = append(flagStrings, "Last Hardlink Removed")
@@ -279,7 +279,7 @@ func (r *ChangelogRecord) flagStrings() []string {
 		if exists {
 			flagStrings = append(flagStrings, "Exists in Archive")
 		}
-	case C.CL_RENAME:
+	case OpRename:
 		last, exists := r.IsLastRename()
 		if last {
 			flagStrings = append(flagStrings, "Last Hardlink Renamed")
@@ -296,7 +296,7 @@ func (r *ChangelogRecord) flagStrings() []string {
 // 1) Whether or not the unlink was for the the last hardlink
 // 2) Whether or not there may still be an archive of the file in HSM
 func (r *ChangelogRecord) IsLastUnlink() (last, exists bool) {
-	if r.rType == C.CL_UNLINK {
+	if r.rType == OpUnlink {
 		last = r.flags&C.CLF_UNLINK_LAST > 0
 		exists = r.flags&C.CLF_UNLINK_HSM_EXISTS > 0
 	}
@@ -307,7 +307,7 @@ func (r *ChangelogRecord) IsLastUnlink() (last, exists bool) {
 // 1) Whether or not the rename was for the the last hardlink
 // 2) Whether or not there may still be an archive of the file in HSM
 func (r *ChangelogRecord) IsLastRename() (last, exists bool) {
-	if r.rType == C.CL_RENAME {
+	if r.rType == OpRename {
 		last = r.flags&C.CLF_RENAME_LAST > 0
 		exists = r.flags&C.CLF_RENAME_LAST_EXISTS > 0
 	}
