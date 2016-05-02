@@ -115,7 +115,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 					return
 				case cdt.GetFd():
 					for {
-						actions, err = cdt.Recv()
+						actions, err = cdt.recv()
 						if err == unix.EAGAIN {
 							break
 						}

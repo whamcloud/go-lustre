@@ -6,12 +6,14 @@ import (
 	"strings"
 )
 
+// Version represents the version of Lustre.
 type Version struct {
 	Lustre string `yaml:"lustre"`
 	Kernel string `yaml:"kernel"`
 	Build  string `yaml:"build"`
 }
 
+// GetVersion returns current Lustre version.
 func GetVersion() (*Version, error) {
 	var ver Version
 

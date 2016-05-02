@@ -20,6 +20,7 @@ type Entry struct {
 	Passno int
 }
 
+// Entries is a list of Entry items.
 type Entries []*Entry
 
 func (e *Entry) String() string {
@@ -80,6 +81,7 @@ func getEntries(fp io.Reader) (Entries, error) {
 	return entries, nil
 }
 
+// ByDir returns firs Entry with the mount directory that matches dir.
 func (entries Entries) ByDir(dir string) (*Entry, error) {
 	for _, mnt := range entries {
 		if mnt.Dir == dir {
@@ -90,6 +92,7 @@ func (entries Entries) ByDir(dir string) (*Entry, error) {
 
 }
 
+//ByType returns list of Entries that match the fstype.
 func (entries Entries) ByType(fstype string) ([]*Entry, error) {
 	var selected []*Entry
 	for _, mnt := range entries {

@@ -5,6 +5,7 @@ import (
 	"unsafe"
 )
 
+//  Xattr constances
 const (
 	CREATE  = 1 // C.XATTR_CREATE
 	REPLACE = 2 // C.XATTR_REPLACE
@@ -106,7 +107,7 @@ func Lsetxattr(path, attr string, value []byte, flags int) (err error) {
 	return
 }
 
-// Lsetxattr sets the extended attribute on the path name
+// Fsetxattr sets the extended attribute on the path name
 func Fsetxattr(fd int, attr string, value []byte, flags int) error {
 	attrBuf, err := syscall.BytePtrFromString(attr)
 	if err != nil {

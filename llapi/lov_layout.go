@@ -54,7 +54,7 @@ type (
 		Index  int
 	}
 
-	// Layout is the structure for file data.
+	// DataLayout is the structure for file data.
 	DataLayout struct {
 		StripePattern int
 		StripeSize    int
@@ -72,11 +72,11 @@ func allocLum() *C.struct_lov_user_md_v1 {
 	return (*C.struct_lov_user_md_v1)(unsafe.Pointer(&buf[0]))
 }
 
-func getObjectAt_v1(lum *C.struct_lov_user_md_v1, index int) *C.struct_lov_user_ost_data {
+func getObjectAtV1(lum *C.struct_lov_user_md_v1, index int) *C.struct_lov_user_ost_data {
 	return C.lum_object_at_v1(lum, C.int(index))
 }
 
-func getObjectAt_v3(lum *C.struct_lov_user_md_v1, index int) *C.struct_lov_user_ost_data {
+func getObjectAtV3(lum *C.struct_lov_user_md_v1, index int) *C.struct_lov_user_ost_data {
 	return C.lum_object_at_v3(lum, C.int(index))
 }
 
@@ -89,10 +89,10 @@ func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
 		StripeOffset:  -1,
 	}
 
-	getObjectAt := getObjectAt_v1
+	getObjectAt := getObjectAtV1
 
 	if lum.lmm_magic == C.LOV_USER_MAGIC_V3 {
-		getObjectAt = getObjectAt_v3
+		getObjectAt = getObjectAtV3
 		l.PoolName = C.GoString(C.lmm_pool_name(lum))
 	}
 
@@ -113,7 +113,7 @@ func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
 	return l, nil
 }
 
-// FileGetStripe retrieves the file's data layout
+// FileDataLayout retrieves the file's data layout
 func FileDataLayout(name string) (*DataLayout, error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
@@ -127,7 +127,7 @@ func FileDataLayout(name string) (*DataLayout, error) {
 	return layoutFromLum(lum)
 }
 
-// FileGetStripeEA retrieves the file's data layout from the extended attribute.
+// FileDataLayoutEA retrieves the file's data layout from the extended attribute.
 func FileDataLayoutEA(name string) (*DataLayout, error) {
 	maxLumSize := C.lov_user_md_size(C.LOV_MAX_STRIPE_COUNT, C.LOV_USER_MAGIC_V3)
 	b1 := make([]byte, maxLumSize)
@@ -142,6 +142,7 @@ func FileDataLayoutEA(name string) (*DataLayout, error) {
 	return layoutFromLum(lum)
 }
 
+// FileOpenPool creates a new file with provided layout
 func FileOpenPool(name string, flags int, mode uint32, layout *DataLayout) (int, error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
@@ -158,6 +159,8 @@ func FileOpenPool(name string, flags int, mode uint32, layout *DataLayout) (int,
 	}
 	return int(fd), nil
 }
+
+// DirDataLayout returns the default DataLayout on a directory.
 func DirDataLayout(name string) (*DataLayout, error) {
 	lum := allocLum()
 	dir, err := os.Open(name)

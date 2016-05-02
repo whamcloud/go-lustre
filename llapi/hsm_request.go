@@ -20,19 +20,28 @@ import (
 	"github.intel.com/hpdd/lustre"
 )
 
-// This limit seems to be imposed by liblustreapi, somewhere.
+// MaxBatchSize is a limit imposed by liblustreapi, somewhere.
 var MaxBatchSize = 50
 
 // HsmUserAction specifies an action for HsmRequest().
 type HsmUserAction uint
 
+//HSM Action Types
+// Each of these actions are applied to up to MaxBatchSize files in a single request. Each file
+// in the request is processed indepentently and potentially in any order.
 const (
-	HsmUserNone    = HsmUserAction(C.HUA_NONE)
+	// HsmUserNone: Noop
+	HsmUserNone = HsmUserAction(C.HUA_NONE)
+	// HsmUserArchive: Archive file to specified archive id
 	HsmUserArchive = HsmUserAction(C.HUA_ARCHIVE)
-	HsmUserRestore = HsmUserAction(C.HUA_RESTORE)
+	// HsmUserRelease: Remove file's data from the filesystem. (Must have been achived first.)
 	HsmUserRelease = HsmUserAction(C.HUA_RELEASE)
-	HsmUserRemove  = HsmUserAction(C.HUA_REMOVE)
-	HsmUserCancel  = HsmUserAction(C.HUA_CANCEL)
+	// HsmUserRestore: Restore a released file
+	HsmUserRestore = HsmUserAction(C.HUA_RESTORE)
+	// HsmUserRemove: Remove data from the archive. (File must not be released.)
+	HsmUserRemove = HsmUserAction(C.HUA_REMOVE)
+	// HsmUserCancel: Cancels current in progress rqeuest for the file.
+	HsmUserCancel = HsmUserAction(C.HUA_CANCEL)
 )
 
 func (action HsmUserAction) String() string {
@@ -42,7 +51,7 @@ func (action HsmUserAction) String() string {
 // HsmRequest submits an HSM request for list of files
 func HsmRequest(r string, cmd HsmUserAction, archiveID uint, fidsToSend []*lustre.Fid) (int, error) {
 	if len(fidsToSend) < 1 {
-		return 0, fmt.Errorf("lustre: Request must include at least 1 file!")
+		return 0, fmt.Errorf("lustre: Request must include at least 1 file")
 	}
 
 	var sentCount int

@@ -49,6 +49,7 @@ func (c *LustreClient) getClientDevices(module string, cli string) []string {
 	return ret
 }
 
+// ClientPath returns path to base proc file for a client module
 func (c *LustreClient) ClientPath(module string, cli string) string {
 	name := fmt.Sprintf("%s-%s-%s", cli, module, c.ClientID)
 	p := filepath.Join(procBase, module, name)
@@ -75,9 +76,12 @@ func (c *LustreClient) LMVTargets() []string {
 }
 
 type (
+	// Wrapper unnamed outer layer in import file
 	Wrapper struct {
 		Import Import
 	}
+
+	// Import is the state of a client import
 	Import struct {
 		Name         string
 		State        string
@@ -88,11 +92,15 @@ type (
 		// OSC only
 		Averages WriteDataAverages `yaml:"write_data_averages"`
 	}
+
+	// WriteDataAverages is available on OSC imports
 	WriteDataAverages struct {
-		BytesPerRpc     int     `yaml:"bytes_per_rpc"`
-		MicrosendPerRpc int     `yaml:"usec_per_rpc"`
+		BytesPerRPC     int     `yaml:"bytes_per_rpc"`
+		MicrosendPerRPC int     `yaml:"usec_per_rpc"`
 		MegabytesPerSec float64 `yaml:"MB_per_sec"`
 	}
+
+	// ConnectionStatus is current status of the import's connection to the target.
 	ConnectionStatus struct {
 		FailoverNids            []string `yaml:"failover_nids"`
 		CurrentConnection       string   `yaml:"current_connection"`
@@ -112,6 +120,7 @@ func removeZeros(b []byte) []byte {
 	return copy
 }
 
+// ReadImport returns Import from the given client dir.
 func ReadImport(path string) (*Import, error) {
 	result := Wrapper{}
 	b := make([]byte, 8192)

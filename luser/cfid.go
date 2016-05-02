@@ -1,7 +1,6 @@
 // Package luser uses lustre interfaces exported to usersapce
 // directly, instead of using the liblustreapi.a library.
-// Data structures created mirror those defined in lustre_user.h
-
+// Data structures created mirror those defined in lustre_user.
 package luser
 
 import (
@@ -11,12 +10,12 @@ import (
 	"github.intel.com/hpdd/lustre/pkg/xattr"
 )
 
-const XATTR_NAME_LMA = "trusted.lma" // from lustre_idl.h
+// XattrNameLMA is the name of extended attribute for the striping data.
+const XattrNameLMA = "trusted.lma" // from lustre_idl.h
 
-// GetFid retuns the lustre.Fid for the path name.
-func GetFid(path string) (*lustre.Fid, error) {
+func getFid(getattr func(attr string, buf []byte) error) (*lustre.Fid, error) {
 	buf := make([]byte, 64)
-	_, err := xattr.Lgetxattr(path, XATTR_NAME_LMA, buf)
+	err := getattr(XattrNameLMA, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -26,12 +25,17 @@ func GetFid(path string) (*lustre.Fid, error) {
 }
 
 // GetFid retuns the lustre.Fid for the path name.
+func GetFid(path string) (*lustre.Fid, error) {
+	return getFid(func(attr string, buf []byte) error {
+		_, err := xattr.Lgetxattr(path, attr, buf)
+		return err
+	})
+}
+
+// GetFidFd retuns the lustre.Fid for the path name.
 func GetFidFd(fd int) (*lustre.Fid, error) {
-	buf := make([]byte, 64)
-	_, err := xattr.Fgetxattr(fd, XATTR_NAME_LMA, buf)
-	if err != nil {
-		return nil, err
-	}
-	fid := parseFid(buf[8:24], binary.LittleEndian)
-	return &fid, nil
+	return getFid(func(attr string, buf []byte) error {
+		_, err := xattr.Fgetxattr(fd, attr, buf)
+		return err
+	})
 }

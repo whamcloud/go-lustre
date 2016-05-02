@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	LINK_EA_MAGIC uint32 = 0x11EAF1DF
-	MaxEASize            = 4096
+	linkEAMagic uint32 = 0x11EAF1DF
+	maxEASize          = 4096
 )
 
 // LinkEntry is an entry from the link extended attribute
@@ -32,16 +32,16 @@ func parseFid(buf []byte, swab binary.ByteOrder) (fid lustre.Fid) {
 // there is no link attribute.
 // Pretty fragile since we're hardcoding all the struct sizes here.
 func GetLinkEA(path string) ([]LinkEntry, error) {
-	var buf [MaxEASize]byte
+	var buf [maxEASize]byte
 	_, err := xattr.Lgetxattr(path, "trusted.link", buf[:])
 	if err != nil {
 		return nil, err
 	}
 	var swab binary.ByteOrder
 	// read struct link_ea_header
-	if binary.BigEndian.Uint32(buf[0:4]) == LINK_EA_MAGIC {
+	if binary.BigEndian.Uint32(buf[0:4]) == linkEAMagic {
 		swab = binary.BigEndian
-	} else if binary.LittleEndian.Uint32(buf[0:4]) == LINK_EA_MAGIC {
+	} else if binary.LittleEndian.Uint32(buf[0:4]) == linkEAMagic {
 		swab = binary.LittleEndian
 	} else {
 		return nil, fmt.Errorf("%s: Invalid EA", path)

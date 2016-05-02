@@ -48,10 +48,13 @@ func (he *HsmEvent) String() string {
 	}
 }
 
+// Changelog is opaque data representing an open changelog.
 type Changelog struct {
 	priv *byte
 }
 
+// ChangelogStart opens the changelog. The firsst record read will be
+// the idnex specified by startRec.
 func ChangelogStart(device string, startRec int64, follow bool) (*Changelog, error) {
 	cl := Changelog{}
 	// NB: CHANGELOG_FLAG_JOBID will be mandatory in future releases.
@@ -77,6 +80,7 @@ func ChangelogStart(device string, startRec int64, follow bool) (*Changelog, err
 	return &cl, nil
 }
 
+// ChangelogFini closes the Changelog.
 func ChangelogFini(cl *Changelog) error {
 	rc := C.llapi_changelog_fini((*unsafe.Pointer)(unsafe.Pointer(&cl.priv)))
 	if rc != 0 {
@@ -87,6 +91,7 @@ func ChangelogFini(cl *Changelog) error {
 	return nil
 }
 
+// ChangelogRecv returns the next record in the changelog.
 func ChangelogRecv(cl *Changelog) (*ChangelogRecord, error) {
 	var rec *C.struct_changelog_rec
 
@@ -105,6 +110,7 @@ func ChangelogRecv(cl *Changelog) (*ChangelogRecord, error) {
 	return r, nil
 }
 
+// ChangelogClear deletes all changelog records up to endRec.
 func ChangelogClear(device string, token string, endRec int64) error {
 	cDevice := C.CString(device)
 	defer C.free(unsafe.Pointer(cDevice))
@@ -175,7 +181,7 @@ func (r *ChangelogRecord) Type() string {
 	return r.typeName
 }
 
-// Type returns the changelog record's type as a string
+// TypeCode returns the changelog record's type as a string
 func (r *ChangelogRecord) TypeCode() uint {
 	return r.rType
 }

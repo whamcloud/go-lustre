@@ -17,19 +17,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if _, err = sim.AddJob(
+	if err = sim.AddJob(
 		simulator.OptJobID("test"),
 		simulator.OptJobMaxFileCount(1024),
 	); err != nil {
 		panic(err)
 	}
-	if _, err = sim.AddJob(
+	if err = sim.AddJob(
 		simulator.OptJobID("test1"),
 		simulator.OptJobMaxFileCount(16384),
 	); err != nil {
 		panic(err)
 	}
-	if _, err = sim.AddJob(
+	if err = sim.AddJob(
 		simulator.OptJobID("test2"),
 		simulator.OptJobMaxFileCount(5242880),
 	); err != nil {

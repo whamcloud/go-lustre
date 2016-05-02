@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 )
 
+// Pool is a pool of resources with a given allocator. If the a resource implements Closer, then
+// it  Close() will be called when resource is removed from the pool.
 type Pool struct {
 	mu        sync.Mutex // protects allocated
 	min       int
@@ -17,12 +19,15 @@ type Pool struct {
 	closed uint32
 }
 
+// Closer interface implements Close().
 type Closer interface {
 	Close() error
 }
 
+// ErrClosed indicates this pool is already closed.
 var ErrClosed = errors.New("Pool is closed")
 
+// New returns a new, initialized Pool.
 func New(name string, min, max int, alloc func() (interface{}, error)) (*Pool, error) {
 	p := &Pool{
 		min:       min,
@@ -46,12 +51,15 @@ func New(name string, min, max int, alloc func() (interface{}, error)) (*Pool, e
 	return p, nil
 }
 
+// Allocated returns current count of resources being managed by the pool.
 func (p *Pool) Allocated() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.allocated
 }
 
+// Get returns a resource or err if pool is closed. This function will
+// block until a resource is available.
 func (p *Pool) Get() (interface{}, error) {
 	if atomic.LoadUint32(&p.closed) == 1 {
 		return nil, ErrClosed
@@ -64,6 +72,7 @@ func (p *Pool) Get() (interface{}, error) {
 	}
 }
 
+// Put places a resource back into the Pool.
 func (p *Pool) Put(res interface{}) {
 	if atomic.LoadUint32(&p.closed) == 1 {
 		p.deleteRes(res)
@@ -106,6 +115,7 @@ func (p *Pool) deleteRes(o interface{}) error {
 	return nil
 }
 
+// Close removes all resources from the pool.
 func (p *Pool) Close() (err error) {
 	atomic.StoreUint32(&p.closed, 1)
 	for {

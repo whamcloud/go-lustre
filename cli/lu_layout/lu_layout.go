@@ -123,7 +123,7 @@ func main() {
 		/*		f, _ := root.Open()
 				defer f.Close()
 
-				idx2, err := llapi.GetMdtIndex2(f, fid)
+				idx2, err := llapi.GetMdtIndex(f, fid)
 				if err != nil {
 					log.Fatal(err)
 				}

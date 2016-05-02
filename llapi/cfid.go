@@ -33,7 +33,6 @@ func toCFid(fid *lustre.Fid) *C.struct_lu_fid {
 }
 
 // Path2Fid returns the Fid for the given path or an error.
-
 func Path2Fid(path string) (*lustre.Fid, error) {
 	cfid := &C.lustre_fid{}
 
@@ -97,6 +96,7 @@ func GetMdtIndexByFid(mountFd int, f *lustre.Fid) (int, error) {
 	return int(mdtIndex), nil
 }
 
-func GetMdtIndex2(f *os.File, fid *lustre.Fid) (int, error) {
+// GetMdtIndex returns the MDT the file resides on.
+func GetMdtIndex(f *os.File, fid *lustre.Fid) (int, error) {
 	return ioctl(int(f.Fd()), C.LL_IOC_FID2MDTIDX, uintptr(unsafe.Pointer(fid)))
 }

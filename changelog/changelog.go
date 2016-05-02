@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	// ChangelogRecord represents a Lustre Changelog record
+	// Record represents a Lustre Changelog record
 	Record interface {
 		Index() int64
 		Name() string
@@ -28,7 +28,7 @@ type (
 		JobID() string
 		String() string
 	}
-	// ChangelogHandle represents an interface to a Lustre Changelog
+	// Handle represents an interface to a Lustre Changelog
 	Handle interface {
 		Open(bool) error
 		OpenAt(int64, bool) error
@@ -38,7 +38,7 @@ type (
 		String() string
 	}
 
-	// ChangelogRecordIterator iterates over Records
+	// RecordIterator iterates over Records
 	RecordIterator interface {
 		NextRecord() (Record, error)
 	}

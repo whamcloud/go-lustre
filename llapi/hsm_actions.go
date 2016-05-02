@@ -16,9 +16,17 @@ import (
 type HsmProgressState uint32
 
 const (
+	// HsmProgressWaiting indicates the HSM action for this file has been
+	// submitted but has not yet been sent to an
+	// agent for processing.
 	HsmProgressWaiting = HsmProgressState(C.HPS_WAITING)
+
+	// HsmProgressRunning indicates the HSM action for this file is currently
+	// be processed by an agent.
 	HsmProgressRunning = HsmProgressState(C.HPS_RUNNING)
-	HsmProgressDone    = HsmProgressState(C.HPS_DONE)
+
+	// HsmProgressDone indicates the HSM action has completed.
+	HsmProgressDone = HsmProgressState(C.HPS_DONE)
 )
 
 func (hps HsmProgressState) String() string {

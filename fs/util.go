@@ -45,6 +45,7 @@ func (root RootDir) Path() string {
 	return root.path
 }
 
+// Open returns open handle for the root directory
 func (root RootDir) Open() (*os.File, error) {
 	return os.Open(root.path)
 }

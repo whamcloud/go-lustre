@@ -31,6 +31,7 @@ type (
 	HsmStateFlag uint32
 )
 
+// HSM State flags
 const (
 	HsmFileExists    = HsmStateFlag(C.HS_EXISTS)
 	HsmFileArchived  = HsmStateFlag(C.HS_ARCHIVED)

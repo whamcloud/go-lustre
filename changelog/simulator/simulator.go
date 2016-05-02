@@ -44,17 +44,17 @@ func (s *Simulator) GetHandle() changelog.Handle {
 }
 
 // AddJob creates a new job and adds it to the simulator
-func (s *Simulator) AddJob(options ...simJobOption) (*simJob, error) {
+func (s *Simulator) AddJob(options ...simJobOption) error {
 	job, err := newJob(s.fidGenerator, options...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if _, ok := s.jobs[job.id]; ok {
-		return nil, fmt.Errorf("Job with id %s already exists!", job.id)
+		return fmt.Errorf("Job with id %s already exists!", job.id)
 	}
 	s.jobs[job.id] = job
 
-	return job, nil
+	return nil
 }
 
 // Start indicates that the simulator should start collecting records

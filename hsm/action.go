@@ -90,7 +90,7 @@ func CoordinatorConnection(path fs.RootDir, nonBlocking bool) (*Coordinator, err
 
 // Recv blocks and waits for new action items from the coordinator.
 // Retuns a slice of *actionItem.
-func (cdt *Coordinator) Recv() ([]*actionItem, error) {
+func (cdt *Coordinator) recv() ([]*actionItem, error) {
 
 	if cdt.hcp == nil {
 		return nil, errors.New("coordinator closed")
@@ -159,8 +159,8 @@ type (
 // let a C type sharing between packages.
 // Once llpai/layout is fixed we can use that.
 //
-func (aih *actionItem) copyLovMd() error {
-	src := fs.FidPath(aih.cdt.root, aih.Fid())
+func (ai *actionItem) copyLovMd() error {
+	src := fs.FidPath(ai.cdt.root, ai.Fid())
 	cSrc := C.CString(src)
 	defer C.free(unsafe.Pointer(cSrc))
 
@@ -180,7 +180,7 @@ func (aih *actionItem) copyLovMd() error {
 
 	lumSize := C.lov_user_md_size(0, lum.lmm_magic)
 
-	fd, err := aih.Fd()
+	fd, err := ai.Fd()
 	if err != nil {
 		return err
 	}
