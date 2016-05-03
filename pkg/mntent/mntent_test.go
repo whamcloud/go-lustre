@@ -1,9 +1,6 @@
 package mntent
 
-import (
-	"bytes"
-	"testing"
-)
+import "testing"
 
 var testFstab = `
 
@@ -45,8 +42,7 @@ func TestGetByDir(t *testing.T) {
 		{testMtab, "/var/lib/lhsmd/roots/lhsm-plugin-s3", "10.0.2.15@tcp0:/lustre"},
 	}
 	for _, test := range cases {
-		in := bytes.NewBufferString(test.tab)
-		entries, err := getEntries(in)
+		entries, err := TestEntries(test.tab)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -75,8 +71,7 @@ func TestGetByType(t *testing.T) {
 		{testMtab, "lustre", []string{"10.0.2.15@tcp:/lustre", "10.0.2.15@tcp0:/lustre", "10.0.2.15@tcp0:/lustre"}},
 	}
 	for _, test := range cases {
-		in := bytes.NewBufferString(test.tab)
-		entries, err := getEntries(in)
+		entries, err := TestEntries(test.tab)
 		if err != nil {
 			t.Fatal(err)
 		}
