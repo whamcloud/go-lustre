@@ -3,11 +3,12 @@ package hsm
 import (
 	"fmt"
 	"os"
-	"sync"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
+
+	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 )
 
@@ -18,45 +19,42 @@ type ActionSource interface {
 	// The channel will be closed when the ActionSource is shutdown.
 	Actions() <-chan ActionRequest
 
-	// Stop signals the action source to shutdown. In-progress actions
-	// will fail.
-	Stop()
+	// Start signals the action source to begin sending actions
+	Start(context.Context) error
 }
 
 type coordinatorSource struct {
 	fsRoot  fs.RootDir
 	actions <-chan ActionRequest
-	mu      sync.Mutex // Protect stopFd
-	stopFd  *os.File
 }
 
-// Start initializes a coordinatorSource for the filesystem in root.
-func Start(root fs.RootDir) (ActionSource, error) {
-	src := &coordinatorSource{fsRoot: root}
-	src.mu.Lock()
-	defer src.mu.Unlock()
+// NewActionSource initializes an ActionSource for the filesystem in root.
+func NewActionSource(root fs.RootDir) ActionSource {
+	return &coordinatorSource{fsRoot: root}
+}
+
+// Start signals the source to begin sending actions
+func (src *coordinatorSource) Start(ctx context.Context) error {
 	// This pipe is used by Stop() to send the terminate signal to actionListener.
 	r, w, err := os.Pipe()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	src.stopFd = w
-	err = src.actionListener(r)
-	if err != nil {
-		return nil, err
-	}
-	return src, nil
-}
 
-func (src *coordinatorSource) Stop() {
-	src.mu.Lock()
-	defer src.mu.Unlock()
-	if src.stopFd == nil {
-		return
+	if err := src.actionListener(r); err != nil {
+		return err
 	}
-	src.stopFd.Write([]byte("stop")) // Aribitrary data to wake up listener
-	src.stopFd.Close()
-	src.stopFd = nil
+
+	// Wait for the context to be canceled, then tell the other
+	// side that we're closing up shop...
+	go func() {
+		<-ctx.Done()
+		// Aribitrary data to wake up listener
+		w.Write([]byte("stop"))
+		w.Close()
+	}()
+
+	return nil
 }
 
 func (src *coordinatorSource) Actions() <-chan ActionRequest {
