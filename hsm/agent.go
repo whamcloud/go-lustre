@@ -67,7 +67,7 @@ func getFd(f *os.File) int {
 
 func (agent *agent) actionListener(stopFile *os.File) error {
 	var err error
-	cdt, err := CoordinatorConnection(agent.root, true)
+	cdc, err := NewCoordinatorClient(agent.root, true)
 	if err != nil {
 		return fmt.Errorf("%s: %s", agent.root, err)
 	}
@@ -85,12 +85,12 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 		ev.Events = unix.EPOLLIN | unix.EPOLLET
 		err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, getFd(stopFile), &ev)
 
-		ev.Fd = int32(cdt.GetFd())
+		ev.Fd = int32(cdc.GetFd())
 		ev.Events = unix.EPOLLIN | unix.EPOLLET
-		err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, cdt.GetFd(), &ev)
+		err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, cdc.GetFd(), &ev)
 
 		defer func() {
-			cdt.Close()
+			cdc.Close()
 			stopFile.Close()
 			unix.Close(epfd)
 			close(ch)
@@ -113,9 +113,9 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 					buf := make([]byte, 32)
 					stopFile.Read(buf)
 					return
-				case cdt.GetFd():
+				case cdc.GetFd():
 					for {
-						actions, err = cdt.recv()
+						actions, err = cdc.recv()
 						if err == unix.EAGAIN {
 							break
 						}

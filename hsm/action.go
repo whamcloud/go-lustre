@@ -39,8 +39,8 @@ const (
 )
 
 type (
-	// Coordinator receives HSM actions to execute.
-	Coordinator struct {
+	// CoordinatorClient receives HSM actions to execute.
+	CoordinatorClient struct {
 		root fs.RootDir
 		hcp  *llapi.HsmCopytoolPrivate
 	}
@@ -48,7 +48,7 @@ type (
 	// ActionItem is one action to perform on specified file.
 	actionItem struct {
 		mu        sync.Mutex
-		cdt       *Coordinator
+		cdc       *CoordinatorClient
 		hcap      *llapi.HsmCopyActionPrivate
 		hai       llapi.HsmActionItem
 		halFlags  uint64
@@ -70,9 +70,9 @@ func IoError(msg string) error {
 	return errors.New(msg)
 }
 
-// CoordinatorConnection opens a connection to the coordinator.
-func CoordinatorConnection(path fs.RootDir, nonBlocking bool) (*Coordinator, error) {
-	var cdt = Coordinator{root: path}
+// NewCoordinatorClient opens a connection to the coordinator.
+func NewCoordinatorClient(path fs.RootDir, nonBlocking bool) (*CoordinatorClient, error) {
+	var cdc = CoordinatorClient{root: path}
 	var err error
 
 	flags := llapi.CopytoolDefault
@@ -81,21 +81,21 @@ func CoordinatorConnection(path fs.RootDir, nonBlocking bool) (*Coordinator, err
 		flags = llapi.CopytoolNonBlock
 	}
 
-	cdt.hcp, err = llapi.HsmCopytoolRegister(path.String(), 0, nil, flags)
+	cdc.hcp, err = llapi.HsmCopytoolRegister(path.String(), 0, nil, flags)
 	if err != nil {
 		return nil, err
 	}
-	return &cdt, nil
+	return &cdc, nil
 }
 
 // Recv blocks and waits for new action items from the coordinator.
 // Retuns a slice of *actionItem.
-func (cdt *Coordinator) recv() ([]*actionItem, error) {
+func (cdc *CoordinatorClient) recv() ([]*actionItem, error) {
 
-	if cdt.hcp == nil {
+	if cdc.hcp == nil {
 		return nil, errors.New("coordinator closed")
 	}
-	actionList, err := llapi.HsmCopytoolRecv(cdt.hcp)
+	actionList, err := llapi.HsmCopytoolRecv(cdc.hcp)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (cdt *Coordinator) recv() ([]*actionItem, error) {
 		item := &actionItem{
 			halFlags:  actionList.Flags,
 			archiveID: actionList.ArchiveID,
-			cdt:       cdt,
+			cdc:       cdc,
 			hai:       hai,
 		}
 		items[i] = item
@@ -113,15 +113,15 @@ func (cdt *Coordinator) recv() ([]*actionItem, error) {
 }
 
 //GetFd returns copytool file descriptor
-func (cdt *Coordinator) GetFd() int {
-	return llapi.HsmCopytoolGetFd(cdt.hcp)
+func (cdc *CoordinatorClient) GetFd() int {
+	return llapi.HsmCopytoolGetFd(cdc.hcp)
 }
 
 // Close terminates connection with coordinator.
-func (cdt *Coordinator) Close() {
-	if cdt.hcp != nil {
-		llapi.HsmCopytoolUnregister(&cdt.hcp)
-		cdt.hcp = nil
+func (cdc *CoordinatorClient) Close() {
+	if cdc.hcp != nil {
+		llapi.HsmCopytoolUnregister(&cdc.hcp)
+		cdc.hcp = nil
 	}
 }
 
@@ -160,7 +160,7 @@ type (
 // Once llpai/layout is fixed we can use that.
 //
 func (ai *actionItem) copyLovMd() error {
-	src := fs.FidPath(ai.cdt.root, ai.Fid())
+	src := fs.FidPath(ai.cdc.root, ai.Fid())
 	cSrc := C.CString(src)
 	defer C.free(unsafe.Pointer(cSrc))
 
@@ -202,7 +202,7 @@ func (ai *actionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 	setLov := false
 	if ai.Action() == RESTORE && !isError {
 		var err error
-		mdtIndex, err = status.GetMdt(ai.cdt.root, ai.Fid())
+		mdtIndex, err = status.GetMdt(ai.cdc.root, ai.Fid())
 		if err != nil {
 
 			return nil, err
@@ -212,7 +212,7 @@ func (ai *actionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 	}
 	var err error
 	ai.mu.Lock()
-	ai.hcap, err = llapi.HsmActionBegin(ai.cdt.hcp, &ai.hai, mdtIndex, openFlags, isError)
+	ai.hcap, err = llapi.HsmActionBegin(ai.cdc.hcp, &ai.hai, mdtIndex, openFlags, isError)
 	ai.mu.Unlock()
 	if err != nil {
 		ai.mu.Lock()
