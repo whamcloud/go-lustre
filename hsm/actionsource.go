@@ -11,65 +11,67 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Agent receives HSM action  from the Coordinator.
-type Agent interface {
-	// Actions is a channel for actions. Mutiple listeners can use this channel.
-	// The channel will be closed when the Agent is shutdown.
+// ActionSource is a source of HSM actions
+type ActionSource interface {
+	// Actions is a channel for HSM actions. Mutiple listeners can use this
+	// channel.
+	// The channel will be closed when the ActionSource is shutdown.
 	Actions() <-chan ActionRequest
 
-	// Stop signals the agent to shutdown. It disconnects from the coordinator and
-	// in progress actions will fail.
+	// Stop signals the action source to shutdown. In-progress actions
+	// will fail.
 	Stop()
 }
 
-type agent struct {
-	root    fs.RootDir
+type coordinatorSource struct {
+	fsRoot  fs.RootDir
 	actions <-chan ActionRequest
 	mu      sync.Mutex // Protect stopFd
 	stopFd  *os.File
 }
 
-// Start initializes an agent for the filesystem in root.
-func Start(root fs.RootDir) (Agent, error) {
-	agent := &agent{root: root}
-	agent.mu.Lock()
-	defer agent.mu.Unlock()
+// Start initializes a coordinatorSource for the filesystem in root.
+func Start(root fs.RootDir) (ActionSource, error) {
+	src := &coordinatorSource{fsRoot: root}
+	src.mu.Lock()
+	defer src.mu.Unlock()
 	// This pipe is used by Stop() to send the terminate signal to actionListener.
 	r, w, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
-	agent.stopFd = w
-	err = agent.actionListener(r)
+	src.stopFd = w
+	err = src.actionListener(r)
 	if err != nil {
 		return nil, err
 	}
-	return agent, nil
+	return src, nil
 }
 
-func (agent *agent) Stop() {
-	agent.mu.Lock()
-	defer agent.mu.Unlock()
-	if agent.stopFd == nil {
+func (src *coordinatorSource) Stop() {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+	if src.stopFd == nil {
 		return
 	}
-	agent.stopFd.Write([]byte("stop")) // Aribitrary data to wake up listener
-	agent.stopFd.Close()
-	agent.stopFd = nil
+	src.stopFd.Write([]byte("stop")) // Aribitrary data to wake up listener
+	src.stopFd.Close()
+	src.stopFd = nil
 }
 
-func (agent *agent) Actions() <-chan ActionRequest {
-	return agent.actions
+func (src *coordinatorSource) Actions() <-chan ActionRequest {
+	return src.actions
 }
+
 func getFd(f *os.File) int {
 	return int(f.Fd())
 }
 
-func (agent *agent) actionListener(stopFile *os.File) error {
+func (src *coordinatorSource) actionListener(stopFile *os.File) error {
 	var err error
-	cdc, err := NewCoordinatorClient(agent.root, true)
+	cdc, err := NewCoordinatorClient(src.fsRoot, true)
 	if err != nil {
-		return fmt.Errorf("%s: %s", agent.root, err)
+		return fmt.Errorf("%s: %s", src.fsRoot, err)
 	}
 
 	ch := make(chan ActionRequest)
@@ -134,7 +136,7 @@ func (agent *agent) actionListener(stopFile *os.File) error {
 		}
 	}()
 
-	agent.actions = bufferedActionChannel(ch)
+	src.actions = bufferedActionChannel(ch)
 	return nil
 }
 
