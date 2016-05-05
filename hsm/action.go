@@ -1,30 +1,14 @@
 package hsm
 
-/*
-#cgo LDFLAGS: -llustreapi
-#include <lustre/lustreapi.h>
-#include <stdlib.h>
-
-struct lov_user_md *  lum_fix_lov_ea(struct lov_user_md_v1 * lum) {
-        lum->lmm_pattern = lum->lmm_pattern ^ LOV_PATTERN_F_RELEASED;
-        lum->lmm_stripe_offset = -1;
-        return lum;
-}
-
-*/
-import "C"
-
 import (
 	"errors"
 	"fmt"
 	"sync"
-	"unsafe"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/lustre/pkg/xattr"
 	"github.intel.com/hpdd/lustre/status"
 	"golang.org/x/sys/unix"
 )
@@ -154,43 +138,20 @@ type (
 
 // Copy the striping info from the primary to the temporary file.
 //
-// This needs to be in once place because we're copying the same C
-// structure from llapi_file_get_stripe to fsetxattr, and Go won't
-// let a C type sharing between packages.
-// Once llpai/layout is fixed we can use that.
-//
 func (ai *actionItem) copyLovMd() error {
-	src := fs.FidPath(ai.cdc.root, ai.Fid())
-	cSrc := C.CString(src)
-	defer C.free(unsafe.Pointer(cSrc))
-
-	maxLumSize := C.lov_user_md_size(C.LOV_MAX_STRIPE_COUNT, C.LOV_USER_MAGIC_V3)
-	buf := make([]byte, maxLumSize)
-	lum := (*C.struct_lov_user_md)(unsafe.Pointer(&buf[0]))
-
-	rc, err := C.llapi_file_get_stripe(cSrc, lum)
-	if err != nil {
-		return err
-	}
-	if rc < 0 {
-		return errors.New("null lum")
-	}
-
-	C.lum_fix_lov_ea(lum)
-
-	lumSize := C.lov_user_md_size(0, lum.lmm_magic)
-
 	fd, err := ai.Fd()
 	if err != nil {
 		return err
 	}
 	defer unix.Close(fd)
-	err = xattr.Fsetxattr(fd, "lustre.lov", buf[:lumSize], xattr.CREATE)
+
+	src := fs.FidPath(ai.cdc.root, ai.Fid())
+	layout, err := llapi.FileDataLayout(src)
 	if err != nil {
 		return err
 	}
-	return nil
 
+	return llapi.SetFileLayout(fd, layout)
 }
 
 // Begin prepares an actionItem for processing.

@@ -5,12 +5,6 @@ import (
 	"unsafe"
 )
 
-//  Xattr constances
-const (
-	CREATE  = 1 // C.XATTR_CREATE
-	REPLACE = 2 // C.XATTR_REPLACE
-)
-
 var _zero uintptr
 
 // Lgetxattr returns the extended attribute from the path name.

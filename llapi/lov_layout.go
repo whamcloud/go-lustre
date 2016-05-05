@@ -10,6 +10,10 @@ __u16 lum_layout_gen(struct lov_user_md_v1 *lum) {
         return lum->lmm_layout_gen;
 }
 
+__u16 lum_set_offset(struct lov_user_md_v1 *lum, __u16 offset) {
+        return lum->lmm_stripe_offset = offset;
+}
+
 struct lov_user_ost_data *lum_object_at_v1(struct lov_user_md_v1 *lum, int index) {
         if (index > lum->lmm_stripe_count) {
                 return NULL;
@@ -25,9 +29,14 @@ struct lov_user_ost_data *lum_object_at_v3(struct lov_user_md_v1 *lum, int index
         return &lumv3->lmm_objects[index];
 }
 
-char  *lmm_pool_name(struct lov_user_md_v1 *lum) {
+char  *lum_pool_name(struct lov_user_md_v1 *lum) {
         struct lov_user_md_v3 *lumv3 =  (struct lov_user_md_v3 *)lum;
         return &lumv3->lmm_pool_name[0];
+}
+
+void lum_set_pool_name(struct lov_user_md_v1 *lum, char * pool_name) {
+        struct lov_user_md_v3 *lumv3 =  (struct lov_user_md_v3 *)lum;
+	strncpy(lumv3->lmm_pool_name, pool_name, LOV_MAXPOOLNAME);
 }
 
 
@@ -93,7 +102,7 @@ func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
 
 	if lum.lmm_magic == C.LOV_USER_MAGIC_V3 {
 		getObjectAt = getObjectAtV3
-		l.PoolName = C.GoString(C.lmm_pool_name(lum))
+		l.PoolName = C.GoString(C.lum_pool_name(lum))
 	}
 
 	if (l.StripePattern & C.LOV_PATTERN_F_RELEASED) == 0 {
@@ -140,6 +149,38 @@ func FileDataLayoutEA(name string) (*DataLayout, error) {
 	lum := (*C.struct_lov_user_md)(unsafe.Pointer(&lovBuf[0]))
 
 	return layoutFromLum(lum)
+}
+
+// SetFileLayout sets the data striping layout on a file that has been
+// created with O_LOV_DELAY_CREATE
+func SetFileLayout(fd int, layout *DataLayout) error {
+	maxLumSize := C.lov_user_md_size(C.LOV_MAX_STRIPE_COUNT, C.LOV_USER_MAGIC_V3)
+	buf := make([]byte, maxLumSize)
+	lum := (*C.struct_lov_user_md)(unsafe.Pointer(&buf[0]))
+
+	lumSize := lumFromLayout(layout, lum)
+
+	return xattr.Fsetxattr(fd, "lustre.lov", buf[:lumSize], xattr.CREATE)
+}
+
+// This is only done when writing a layout, so we don't need to copy
+// all the fields.
+func lumFromLayout(layout *DataLayout, lum *C.struct_lov_user_md_v1) int {
+	lum.lmm_magic = C.LOV_USER_MAGIC_V1
+	// Clear released flag when writing the layout
+	lum.lmm_pattern = C.__u32(layout.StripePattern ^ C.LOV_PATTERN_F_RELEASED)
+	lum.lmm_stripe_size = C.__u32(layout.StripeSize)
+	lum.lmm_stripe_count = C.__u16(layout.StripeCount)
+	C.lum_set_offset(lum, C.__u16(layout.StripeOffset))
+	if layout.PoolName != "" {
+		cPoolName := C.CString(layout.PoolName)
+		defer C.free(unsafe.Pointer(cPoolName))
+		lum.lmm_magic = C.LOV_USER_MAGIC_V3
+		C.lum_set_pool_name(lum, cPoolName)
+	}
+
+	size := C.lov_user_md_size(0, lum.lmm_magic)
+	return int(size)
 }
 
 // FileOpenPool creates a new file with provided layout
