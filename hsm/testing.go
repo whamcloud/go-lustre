@@ -13,6 +13,10 @@ import (
 )
 
 type (
+	// SignalChan is a channel that waiters can block on while
+	// waiting for certain events to occur.
+	SignalChan chan struct{}
+
 	// TestSource implements hsm.ActionSource, but provides a
 	// Lustre-independent way of generating hsm requests.
 	TestSource struct {
@@ -21,17 +25,35 @@ type (
 		rng        *rand.Rand
 	}
 
-	testRequest struct {
-		archive uint
-		action  llapi.HsmAction
-		testFid *lustre.Fid
+	// TestRequest implements hsm.ActionRequest with additional
+	// methods for controlling/inpecting request state.
+	TestRequest struct {
+		archive                uint
+		action                 llapi.HsmAction
+		testFid                *lustre.Fid
+		handleProgressReceived chan *TestProgressUpdate
+		handleEndReceived      SignalChan
 	}
 
 	testHandle struct {
-		req ActionRequest
-		fid *lustre.Fid
+		req              ActionRequest
+		fid              *lustre.Fid
+		progressReceived chan *TestProgressUpdate
+		endReceived      SignalChan
+	}
+
+	// TestProgressUpdate contains information about progress updates
+	// received by the test handle.
+	TestProgressUpdate struct {
+		Offset uint64
+		Length uint64
+		Total  uint64
 	}
 )
+
+func (p *TestProgressUpdate) String() string {
+	return fmt.Sprintf("Progress: %d->%d/%d", p.Offset, p.Length, p.Total)
+}
 
 // NewTestSource returns an ActionSource implementation suitable for testing
 func NewTestSource() *TestSource {
@@ -49,7 +71,7 @@ func (s *TestSource) AddAction(ar ActionRequest) {
 
 // GenerateRandomAction generates a random action request
 func (s *TestSource) GenerateRandomAction() {
-	s.nextAction <- &testRequest{}
+	s.nextAction <- &TestRequest{}
 }
 
 // Actions returns a channel for callers to receive ActionRequests
@@ -82,43 +104,72 @@ func (s *TestSource) Start(ctx context.Context) error {
 	return nil
 }
 
-// NewTestRequest returns a new *testRequest
-func NewTestRequest(archive uint, action llapi.HsmAction, fid *lustre.Fid) ActionRequest {
-	return &testRequest{
-		testFid: fid,
-		archive: archive,
-		action:  action,
+// NewTestRequest returns a new *TestRequest
+func NewTestRequest(archive uint, action llapi.HsmAction, fid *lustre.Fid) *TestRequest {
+	return &TestRequest{
+		testFid:                fid,
+		archive:                archive,
+		action:                 action,
+		handleProgressReceived: make(chan *TestProgressUpdate),
+		handleEndReceived:      make(SignalChan),
 	}
 }
 
-func (r *testRequest) Begin(flags int, isError bool) (ActionHandle, error) {
+// Begin returns a new test handle
+func (r *TestRequest) Begin(flags int, isError bool) (ActionHandle, error) {
 	return &testHandle{
-		req: r,
-		fid: r.testFid,
+		req:              r,
+		fid:              r.testFid,
+		progressReceived: r.handleProgressReceived,
+		endReceived:      r.handleEndReceived,
 	}, nil
 }
 
-func (r *testRequest) FailImmediately(errval int) {
+// FailImmediately immediately fails the request
+func (r *TestRequest) FailImmediately(errval int) {
 	return
 }
 
-func (r *testRequest) ArchiveID() uint {
+// ArchiveID returns the backend archive number
+func (r *TestRequest) ArchiveID() uint {
 	return r.archive
 }
 
-func (r *testRequest) String() string {
+func (r *TestRequest) String() string {
 	return fmt.Sprintf("Test Request: %s", r.Action())
 }
 
-func (r *testRequest) Action() llapi.HsmAction {
+// Action returns the HSM action type
+func (r *TestRequest) Action() llapi.HsmAction {
 	return r.action
 }
 
+// Test-only methods for TestRequest follow
+
+// ProgressUpdates returns a channel through which progress updates
+// may be received.
+func (r *TestRequest) ProgressUpdates() chan *TestProgressUpdate {
+	return r.handleProgressReceived
+}
+
+// Finished returns a channel on which waiters may block until the
+// request is finished.
+func (r *TestRequest) Finished() SignalChan {
+	return r.handleEndReceived
+}
+
 func (h *testHandle) Progress(offset, length, total uint64, flags int) error {
+	h.progressReceived <- &TestProgressUpdate{
+		Offset: offset,
+		Length: length,
+		Total:  total,
+	}
 	return nil
 }
 
 func (h *testHandle) End(offset, length uint64, flags int, errval int) error {
+	close(h.progressReceived)
+	close(h.endReceived)
 	return nil
 }
 
