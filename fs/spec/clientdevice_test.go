@@ -25,6 +25,10 @@ func TestClientDeviceFromString(t *testing.T) {
 			err string
 		}{
 			{
+				in:  `0@lo:/fsname`,
+				out: `0@lo:/fsname`,
+			},
+			{
 				in:  `127.0.0.1@tcp:/fsname`,
 				out: `127.0.0.1@tcp0:/fsname`,
 			},
@@ -37,6 +41,11 @@ func TestClientDeviceFromString(t *testing.T) {
 				out: `10.0.1.2@tcp3:127.0.0.2@tcp0,127.0.0.1@tcp0:/fsname`,
 			},
 			{
+				in:  `10.0.1.2@tcp3:localhost@tcp,localhost@tcp1:/fsname`,
+				out: `10.0.1.2@tcp3:127.0.0.1@tcp0,127.0.0.1@tcp1:/fsname`,
+			},
+
+			{
 				in:  `127.0.0.1@tcp:/`,
 				err: `Cannot parse client mount device from "127.0.0.1@tcp:/"`,
 			},
@@ -46,7 +55,7 @@ func TestClientDeviceFromString(t *testing.T) {
 			},
 			{
 				in:  `101@gni:/fsname`,
-				err: `Unsupported LND: gni`,
+				err: `parsing nid failed: Unsupported LND: gni`,
 			},
 		}
 
@@ -56,7 +65,7 @@ func TestClientDeviceFromString(t *testing.T) {
 				So(err2str(err), ShouldEqual, tc.err)
 
 				if d != nil {
-					So(tc.out, ShouldEqual, d.String())
+					So(d.String(), ShouldEqual, tc.out)
 				}
 			})
 		}

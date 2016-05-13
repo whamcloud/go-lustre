@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.intel.com/hpdd/ce-tools/lib/tu"
-	"github.intel.com/hpdd/ce-tools/resources/lustre/lnet"
+	"github.intel.com/hpdd/lustre/lnet"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -17,6 +17,18 @@ func TestNidFunctions(t *testing.T) {
 			out string
 			err string
 		}{
+			{
+				in:  `0@lo`,
+				out: `0@lo`,
+			},
+			{
+				in:  `localhost@tcp`,
+				out: `127.0.0.1@tcp0`,
+			},
+			{
+				in:  `quack.bad-dog@tcp`,
+				err: `unable to resolve non-numeric address "quack.bad-dog" into an IP address: lookup quack.bad-dog: no such host`,
+			},
 			{
 				in:  `127.0.0.1@tcp`,
 				out: `127.0.0.1@tcp0`,
@@ -39,7 +51,7 @@ func TestNidFunctions(t *testing.T) {
 			},
 			{
 				in:  `@tcp`,
-				err: `"" is not a valid IP address`,
+				err: `Cannot parse NID from "@tcp"`,
 			},
 		}
 

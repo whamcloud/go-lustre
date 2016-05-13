@@ -3,6 +3,7 @@ package lnet
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -75,7 +76,7 @@ func SupportedDrivers() []string {
 // NidFromString takes a string representation of a Nid and returns an
 // *Nid.
 func NidFromString(inString string) (*Nid, error) {
-	nidRe := regexp.MustCompile(`^(.*)@(\w+[^\d*])(\d*)$`)
+	nidRe := regexp.MustCompile(`^(.+)@(\w+[^\d*])(\d*)$`)
 	matches := nidRe.FindStringSubmatch(inString)
 	if len(matches) < 3 {
 		return nil, errors.Errorf("Cannot parse NID from %q", inString)
@@ -89,6 +90,23 @@ func NidFromString(inString string) (*Nid, error) {
 		driverInstance, err = strconv.Atoi(matches[3])
 		if err != nil {
 			return nil, errors.Wrap(err, "driver instance number failed")
+		}
+	}
+
+	ipRe := regexp.MustCompile(`^[\.\d]+`)
+	if !ipRe.MatchString(address) {
+		// Not an IP address or number; try to resolve it
+		ipAddrs, err := net.LookupIP(address)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to resolve non-numeric address %q into an IP address", address)
+		}
+
+		// Just take the first IPv4 address (LNet doesn't support IPv6)
+		for _, addr := range ipAddrs {
+			if addr.To4() != nil {
+				address = addr.String()
+				break
+			}
 		}
 	}
 
