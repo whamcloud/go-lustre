@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Each driver implementation needs to register itself in this map.
@@ -76,7 +78,7 @@ func NidFromString(inString string) (*Nid, error) {
 	nidRe := regexp.MustCompile(`^(.*)@(\w+[^\d*])(\d*)$`)
 	matches := nidRe.FindStringSubmatch(inString)
 	if len(matches) < 3 {
-		return nil, fmt.Errorf("Cannot parse NID from %q", inString)
+		return nil, errors.Errorf("Cannot parse NID from %q", inString)
 	}
 
 	address := matches[1]
@@ -86,18 +88,18 @@ func NidFromString(inString string) (*Nid, error) {
 		var err error
 		driverInstance, err = strconv.Atoi(matches[3])
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "driver instance number failed")
 		}
 	}
 
 	if initFunc, present := drivers[driver]; present {
 		raw, err := initFunc(address, driverInstance)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "nid init failed")
 		}
 		return &Nid{raw: raw}, nil
 	}
-	return nil, fmt.Errorf("Unsupported LND: %s", driver)
+	return nil, errors.Errorf("Unsupported LND: %s", driver)
 }
 
 // NidList is a list of NIDs for a server

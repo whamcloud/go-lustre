@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Entry is an entry in a filesystem table.
@@ -28,7 +30,7 @@ func (e *Entry) String() string {
 }
 
 func parseError(line, msg string) error {
-	return fmt.Errorf("Error parsing %q: %s", strings.TrimSpace(line), msg)
+	return errors.Errorf("Error parsing %q: %s", strings.TrimSpace(line), msg)
 }
 
 func parseEntry(line string) (*Entry, error) {
@@ -47,13 +49,13 @@ func parseEntry(line string) (*Entry, error) {
 	if len(fields) >= 5 {
 		entry.Freq, err = strconv.Atoi(fields[4])
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "read frequency")
 		}
 	}
 	if len(fields) >= 5 {
 		entry.Passno, err = strconv.Atoi(fields[5])
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "read passno")
 		}
 
 	}
@@ -71,7 +73,7 @@ func getEntries(fp io.Reader) (Entries, error) {
 		}
 		entry, err := parseEntry(line)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "parsing line failed")
 		}
 		entries = append(entries, entry)
 	}
@@ -88,7 +90,7 @@ func (entries Entries) ByDir(dir string) (*Entry, error) {
 			return mnt, nil
 		}
 	}
-	return nil, fmt.Errorf("%q: mount point not found", dir)
+	return nil, errors.Errorf("%q: mount point not found", dir)
 
 }
 
@@ -109,7 +111,7 @@ func GetEntryByDir(dir string) (*Entry, error) {
 	dir = filepath.Clean(dir)
 	entries, err := GetMounted()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "get  mounted failed")
 	}
 	return entries.ByDir(dir)
 }
@@ -119,7 +121,7 @@ func GetEntryByDir(dir string) (*Entry, error) {
 func GetEntriesByType(fstype string) ([]*Entry, error) {
 	entries, err := GetMounted()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "get  mounted failed")
 	}
 	return entries.ByType(fstype)
 }

@@ -3,6 +3,8 @@ package lnet
 import (
 	"fmt"
 	"net"
+
+	"github.com/pkg/errors"
 )
 
 const o2IbDriverString = "o2ib"
@@ -37,7 +39,7 @@ func (t *IbNid) LNet() string {
 func newIbNid(address string, driverInstance int) (RawNid, error) {
 	ip := net.ParseIP(address)
 	if ip == nil {
-		return nil, fmt.Errorf("%q is not a valid IP address", address)
+		return nil, errors.Errorf("%q is not a valid IP address", address)
 	}
 	return &IbNid{
 		IPAddress:      &ip,

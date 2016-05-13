@@ -96,7 +96,7 @@ func isDotLustre(dir string) bool {
 func rootDevice(fi os.FileInfo) uint64 {
 	stat, ok := fi.Sys().(*syscall.Stat_t)
 	if ok {
-		return stat.Dev
+		return uint64(stat.Dev)
 	}
 	panic("no stat available")
 }
@@ -120,7 +120,7 @@ func findRoot(dev uint64, pathname string) string {
 	return findRoot(dev, parent)
 }
 
-// MountRoot returns the Lustre filesystem mountpoint for the give path
+// MountRoot returns the Lustre filesystem mountpoint for path
 // or returns an error if the path is not on a Lustre filesystem.
 func MountRoot(path string) (RootDir, error) {
 	absPath, err := filepath.Abs(path)

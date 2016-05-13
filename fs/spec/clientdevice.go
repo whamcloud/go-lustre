@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.intel.com/hpdd/lustre/lnet"
 )
 
@@ -28,11 +30,11 @@ func (d *ClientDevice) MarshalJSON() ([]byte, error) {
 func (d *ClientDevice) UnmarshalJSON(data []byte) error {
 	var devStr string
 	if err := json.Unmarshal(data, &devStr); err != nil {
-		return err
+		return errors.Wrap(err, "unmarshal failed")
 	}
 	dev, err := ClientDeviceFromString(devStr)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "parsing client device failed")
 	}
 	*d = *dev
 	return nil
@@ -44,7 +46,7 @@ func ClientDeviceFromString(inString string) (*ClientDevice, error) {
 	devRe := regexp.MustCompile(`^(.+):/([^:/]+)$`)
 	matches := devRe.FindStringSubmatch(inString)
 	if len(matches) < 3 {
-		return nil, fmt.Errorf("Cannot parse client mount device from %q", inString)
+		return nil, errors.Errorf("Cannot parse client mount device from %q", inString)
 	}
 
 	dev := &ClientDevice{
@@ -56,7 +58,7 @@ func ClientDeviceFromString(inString string) (*ClientDevice, error) {
 		for _, nidStr := range strings.Split(nodeStr, ",") {
 			nid, err := lnet.NidFromString(nidStr)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "parsing nid failed")
 			}
 			nidList = append(nidList, nid)
 		}
