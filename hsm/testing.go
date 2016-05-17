@@ -33,13 +33,7 @@ type (
 		testFid                *lustre.Fid
 		handleProgressReceived chan *TestProgressUpdate
 		handleEndReceived      SignalChan
-	}
-
-	testHandle struct {
-		req              ActionRequest
-		fid              *lustre.Fid
-		progressReceived chan *TestProgressUpdate
-		endReceived      SignalChan
+		data                   []byte
 	}
 
 	// TestProgressUpdate contains information about progress updates
@@ -105,7 +99,7 @@ func (s *TestSource) Start(ctx context.Context) error {
 }
 
 // NewTestRequest returns a new *TestRequest
-func NewTestRequest(archive uint, action llapi.HsmAction, fid *lustre.Fid) *TestRequest {
+func NewTestRequest(archive uint, action llapi.HsmAction, fid *lustre.Fid, data []byte) *TestRequest {
 	return &TestRequest{
 		testFid:                fid,
 		archive:                archive,
@@ -117,12 +111,7 @@ func NewTestRequest(archive uint, action llapi.HsmAction, fid *lustre.Fid) *Test
 
 // Begin returns a new test handle
 func (r *TestRequest) Begin(flags int, isError bool) (ActionHandle, error) {
-	return &testHandle{
-		req:              r,
-		fid:              r.testFid,
-		progressReceived: r.handleProgressReceived,
-		endReceived:      r.handleEndReceived,
-	}, nil
+	return r, nil
 }
 
 // FailImmediately immediately fails the request
@@ -158,8 +147,8 @@ func (r *TestRequest) Finished() SignalChan {
 	return r.handleEndReceived
 }
 
-func (h *testHandle) Progress(offset, length, total uint64, flags int) error {
-	h.progressReceived <- &TestProgressUpdate{
+func (r *TestRequest) Progress(offset, length, total uint64, flags int) error {
+	r.handleProgressReceived <- &TestProgressUpdate{
 		Offset: offset,
 		Length: length,
 		Total:  total,
@@ -167,48 +156,35 @@ func (h *testHandle) Progress(offset, length, total uint64, flags int) error {
 	return nil
 }
 
-func (h *testHandle) End(offset, length uint64, flags int, errval int) error {
-	close(h.progressReceived)
-	close(h.endReceived)
+func (r *TestRequest) End(offset, length uint64, flags int, errval int) error {
+	close(r.handleProgressReceived)
+	close(r.handleEndReceived)
 	return nil
 }
 
-func (h *testHandle) Action() llapi.HsmAction {
-	return h.req.Action()
+func (r *TestRequest) Fid() *lustre.Fid {
+	return r.testFid
 }
 
-func (h *testHandle) Fid() *lustre.Fid {
-	return h.fid
-}
-
-func (h *testHandle) Cookie() uint64 {
+func (r *TestRequest) Cookie() uint64 {
 	return 0
 }
 
-func (h *testHandle) DataFid() (*lustre.Fid, error) {
-	return h.fid, nil
+func (r *TestRequest) DataFid() (*lustre.Fid, error) {
+	return r.testFid, nil
 }
 
-func (h *testHandle) Fd() (int, error) {
+func (r *TestRequest) Fd() (int, error) {
 	return 0, nil
 }
 
-func (h *testHandle) Offset() uint64 {
+func (r *TestRequest) Offset() uint64 {
 	return 0
 }
 
-func (h *testHandle) ArchiveID() uint {
-	return h.req.ArchiveID()
-}
-
-func (h *testHandle) Length() uint64 {
+func (r *TestRequest) Length() uint64 {
 	return 0
 }
-
-func (h *testHandle) String() string {
-	return ""
-}
-
-func (h *testHandle) Data() []byte {
-	return nil
+func (r *TestRequest) Data() []byte {
+	return r.data
 }

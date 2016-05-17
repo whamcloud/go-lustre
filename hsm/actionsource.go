@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
+
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
@@ -84,10 +86,16 @@ func (src *coordinatorSource) actionListener(stopFile *os.File) error {
 		ev.Fd = int32(getFd(stopFile))
 		ev.Events = unix.EPOLLIN | unix.EPOLLET
 		err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, getFd(stopFile), &ev)
+		if err != nil {
+			alert.Abort(errors.Wrap(err, "epollctl stopfile failed"))
+		}
 
 		ev.Fd = int32(cdc.GetFd())
 		ev.Events = unix.EPOLLIN | unix.EPOLLET
 		err = unix.EpollCtl(epfd, unix.EPOLL_CTL_ADD, cdc.GetFd(), &ev)
+		if err != nil {
+			alert.Abort(errors.Wrap(err, "epollctl coordinator fd failed"))
+		}
 
 		defer func() {
 			cdc.Close()

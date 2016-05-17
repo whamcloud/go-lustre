@@ -226,7 +226,7 @@ func lengthStr(length uint64) string {
 }
 
 func (ai *actionItem) String() string {
-	return fmt.Sprintf("AI: %x %v %v %d,%v", ai.hai.Cookie, ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()))
+	return fmt.Sprintf("AI: %x %v %v %d,%v %v", ai.hai.Cookie, ai.Action(), ai.Fid(), ai.Offset(), lengthStr(ai.Length()), ai.Data())
 }
 
 // Progress reports current progress of an action.
