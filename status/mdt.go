@@ -85,10 +85,16 @@ func putMount(mnt *mountDir) {
 
 // GetMdt returns the MDT index for a given Fid
 func GetMdt(root fs.RootDir, f *lustre.Fid) (int, error) {
-	mnt, err := getOpenMount(root)
-	defer putMount(mnt)
+	// mnt, err := getOpenMount(root)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// defer putMount(mnt)
+	// return mnt.GetMdt(f)
+	fp, err := os.Open(root.Path())
 	if err != nil {
 		return 0, err
 	}
-	return mnt.GetMdt(f)
+	defer fp.Close()
+	return llapi.GetMdtIndexByFid(int(fp.Fd()), f)
 }
