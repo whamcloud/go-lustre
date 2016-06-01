@@ -27,7 +27,7 @@ func TestNidFunctions(t *testing.T) {
 			},
 			{
 				in:  `quack.bad-dog@tcp`,
-				err: `unable to resolve non-numeric address "quack.bad-dog" into an IP address: lookup quack.bad-dog: no such host`,
+				err: `unable to resolve non-numeric address "quack.bad-dog" into an IP address`,
 			},
 			{
 				in:  `127.0.0.1@tcp`,
@@ -58,7 +58,7 @@ func TestNidFunctions(t *testing.T) {
 		for _, tc := range tests {
 			Convey(tc.in, func() {
 				n, err := lnet.NidFromString(tc.in)
-				So(tu.Err2str(err), ShouldEqual, tc.err)
+				So(tu.Err2str(err), ShouldStartWith, tc.err)
 
 				if n != nil {
 					So(n.String(), ShouldEqual, tc.out)
