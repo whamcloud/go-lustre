@@ -15,11 +15,11 @@ func init() {
 
 // IbNid is an Infiniband LND NID
 type IbNid struct {
-	IPAddress      *net.IP
+	IPAddress      net.IP
 	driverInstance int
 }
 
-// Address returns the underlying *net.IP
+// Address returns the underlying net.IP
 // NB: This address is used for identification at the LND level, using
 // the HCA port's IPoIB address.
 func (t *IbNid) Address() interface{} {
@@ -42,7 +42,7 @@ func newIbNid(address string, driverInstance int) (RawNid, error) {
 		return nil, errors.Errorf("%q is not a valid IP address", address)
 	}
 	return &IbNid{
-		IPAddress:      &ip,
+		IPAddress:      ip,
 		driverInstance: driverInstance,
 	}, nil
 }

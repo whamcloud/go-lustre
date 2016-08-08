@@ -15,11 +15,11 @@ func init() {
 
 // TCPNid is a TCP LND NID
 type TCPNid struct {
-	IPAddress      *net.IP
+	IPAddress      net.IP
 	driverInstance int
 }
 
-// Address returns the underlying *net.IP
+// Address returns the underlying net.IP
 func (t *TCPNid) Address() interface{} {
 	return t.IPAddress
 }
@@ -40,7 +40,7 @@ func newTCPNid(address string, driverInstance int) (RawNid, error) {
 		return nil, errors.Errorf("%q is not a valid IP address", address)
 	}
 	return &TCPNid{
-		IPAddress:      &ip,
+		IPAddress:      ip,
 		driverInstance: driverInstance,
 	}, nil
 }

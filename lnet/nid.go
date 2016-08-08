@@ -54,7 +54,7 @@ func (nid *Nid) String() string {
 	return fmt.Sprintf("%s@%s", nid.raw.Address(), nid.raw.LNet())
 }
 
-// Address returns the underlying Nid address (e.g. a *net.IP, string, etc.)
+// Address returns the underlying Nid address (e.g. a net.IP, string, etc.)
 func (nid *Nid) Address() interface{} {
 	return nid.raw.Address()
 }

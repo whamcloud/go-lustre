@@ -11,7 +11,7 @@ func init() {
 // LoopbackNid is a Loopback LND NID. It will only ever be 0@lo.
 type LoopbackNid struct{}
 
-// Address returns the underlying *net.IP
+// Address returns the underlying net.IP
 func (t *LoopbackNid) Address() interface{} {
 	return "0"
 }
