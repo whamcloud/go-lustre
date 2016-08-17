@@ -4,7 +4,7 @@ package llapi
 // #include <lustre/lustreapi.h>
 //
 // /* cr_tfid is a union, so cgo essentially ignores it */
-// lustre_fid changelog_rec_tfid(struct changelog_rec *rec) {
+// lustre_fid _changelog_rec_tfid(struct changelog_rec *rec) {
 //    return rec->cr_tfid;
 // }
 //
@@ -319,7 +319,7 @@ func hasJobID(r *ChangelogRecord) bool {
 }
 
 func newRecord(cRec *C.struct_changelog_rec) (*ChangelogRecord, error) {
-	tfid := C.changelog_rec_tfid(cRec)
+	tfid := C._changelog_rec_tfid(cRec)
 	record := &ChangelogRecord{
 		name:      C.GoString(C.changelog_rec_name(cRec)),
 		index:     int64(cRec.cr_index),

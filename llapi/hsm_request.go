@@ -8,7 +8,7 @@ package llapi
 // /* CGO 1.5 doesn't support zero byte fields at the
 //  * end of structs so we need an accessor.
 //  */
-// struct hsm_user_item *hur_user_item(struct hsm_user_request  *hur) {
+// struct hsm_user_item *_hur_user_item(struct hsm_user_request  *hur) {
 //     return &hur->hur_user_item[0];
 // }
 import "C"
@@ -92,7 +92,7 @@ func hsmRequest(r string, cmd HsmUserAction, archiveID uint, fids []*lustre.Fid)
 
 	// https://code.google.com/p/go-wiki/wiki/cgo#Turning_C_arrays_into_Go_slices
 	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(C.hur_user_item(hur))),
+		Data: uintptr(unsafe.Pointer(C._hur_user_item(hur))),
 		Len:  fileCount,
 		Cap:  fileCount,
 	}

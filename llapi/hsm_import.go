@@ -9,7 +9,7 @@ package llapi
 #include <stdlib.h>
 #include <lustre/lustreapi.h>
 
-void lum_set_stripe_offset(struct lov_user_md_v3 *lum, __u16 offset) {
+void _lum_set_stripe_offset(struct lov_user_md_v3 *lum, __u16 offset) {
 	lum->lmm_stripe_offset = offset;
 }
 */

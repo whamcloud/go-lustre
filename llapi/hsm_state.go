@@ -5,7 +5,7 @@ package llapi
 #include <stdlib.h>
 
 // This doesn't exist in the API, but maybe it should?
-struct hsm_user_state *hsm_user_state_alloc()
+struct hsm_user_state *_hsm_user_state_alloc()
 {
 	int len = 0;
 
@@ -82,7 +82,7 @@ func (s HsmFileState) Flags() []string {
 
 // GetHsmFileStatus returns the HSM state and archive number for the given file.
 func GetHsmFileStatus(filePath string) (HsmFileState, uint32, error) {
-	hus := C.hsm_user_state_alloc()
+	hus := C._hsm_user_state_alloc()
 	defer C.free(unsafe.Pointer(hus))
 
 	buf := C.CString(filePath)

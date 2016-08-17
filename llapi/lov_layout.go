@@ -6,22 +6,22 @@ package llapi
 #include <errno.h>
 #include <stdlib.h>
 
-__u16 lum_layout_gen(struct lov_user_md_v1 *lum) {
+__u16 _lum_layout_gen(struct lov_user_md_v1 *lum) {
         return lum->lmm_layout_gen;
 }
 
-__u16 lum_set_offset(struct lov_user_md_v1 *lum, __u16 offset) {
+__u16 _lum_set_offset(struct lov_user_md_v1 *lum, __u16 offset) {
         return lum->lmm_stripe_offset = offset;
 }
 
-struct lov_user_ost_data *lum_object_at_v1(struct lov_user_md_v1 *lum, int index) {
+struct lov_user_ost_data *_lum_object_at_v1(struct lov_user_md_v1 *lum, int index) {
         if (index > lum->lmm_stripe_count) {
                 return NULL;
         }
         return &lum->lmm_objects[index];
 }
 
-struct lov_user_ost_data *lum_object_at_v3(struct lov_user_md_v1 *lum, int index) {
+struct lov_user_ost_data *_lum_object_at_v3(struct lov_user_md_v1 *lum, int index) {
         struct lov_user_md_v3 *lumv3 =  (struct lov_user_md_v3 *)lum;
         if (index > lumv3->lmm_stripe_count) {
                 return NULL;
@@ -29,18 +29,18 @@ struct lov_user_ost_data *lum_object_at_v3(struct lov_user_md_v1 *lum, int index
         return &lumv3->lmm_objects[index];
 }
 
-char  *lum_pool_name(struct lov_user_md_v1 *lum) {
+char  *_lum_pool_name(struct lov_user_md_v1 *lum) {
         struct lov_user_md_v3 *lumv3 =  (struct lov_user_md_v3 *)lum;
         return &lumv3->lmm_pool_name[0];
 }
 
-void lum_set_pool_name(struct lov_user_md_v1 *lum, char * pool_name) {
+void _lum_set_pool_name(struct lov_user_md_v1 *lum, char * pool_name) {
         struct lov_user_md_v3 *lumv3 =  (struct lov_user_md_v3 *)lum;
 	strncpy(lumv3->lmm_pool_name, pool_name, LOV_MAXPOOLNAME);
 }
 
 
-struct lu_fid *lov_user_ost_fid(struct lov_user_ost_data *luod) {
+struct lu_fid *_lov_user_ost_fid(struct lov_user_ost_data *luod) {
         return &luod->l_ost_oi.oi_fid;
 }
 
@@ -82,11 +82,11 @@ func allocLum() *C.struct_lov_user_md_v1 {
 }
 
 func getObjectAtV1(lum *C.struct_lov_user_md_v1, index int) *C.struct_lov_user_ost_data {
-	return C.lum_object_at_v1(lum, C.int(index))
+	return C._lum_object_at_v1(lum, C.int(index))
 }
 
 func getObjectAtV3(lum *C.struct_lov_user_md_v1, index int) *C.struct_lov_user_ost_data {
-	return C.lum_object_at_v3(lum, C.int(index))
+	return C._lum_object_at_v3(lum, C.int(index))
 }
 
 func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
@@ -94,7 +94,7 @@ func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
 		StripePattern: int(lum.lmm_pattern),
 		StripeSize:    int(lum.lmm_stripe_size),
 		StripeCount:   int(lum.lmm_stripe_count),
-		Generation:    int(C.lum_layout_gen(lum)),
+		Generation:    int(C._lum_layout_gen(lum)),
 		StripeOffset:  -1,
 	}
 
@@ -102,7 +102,7 @@ func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
 
 	if lum.lmm_magic == C.LOV_USER_MAGIC_V3 {
 		getObjectAt = getObjectAtV3
-		l.PoolName = C.GoString(C.lum_pool_name(lum))
+		l.PoolName = C.GoString(C._lum_pool_name(lum))
 	}
 
 	if (l.StripePattern & C.LOV_PATTERN_F_RELEASED) == 0 {
@@ -114,7 +114,7 @@ func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
 			}
 			o.Gen = int(cobj.l_ost_gen)
 			o.Index = int(cobj.l_ost_idx)
-			cfid := C.lov_user_ost_fid(cobj)
+			cfid := C._lov_user_ost_fid(cobj)
 			o.Object = *fromCFid(cfid)
 			l.Objects = append(l.Objects, o)
 		}
@@ -171,12 +171,12 @@ func lumFromLayout(layout *DataLayout, lum *C.struct_lov_user_md_v1) int {
 	lum.lmm_pattern = C.__u32(layout.StripePattern ^ C.LOV_PATTERN_F_RELEASED)
 	lum.lmm_stripe_size = C.__u32(layout.StripeSize)
 	lum.lmm_stripe_count = C.__u16(layout.StripeCount)
-	C.lum_set_offset(lum, C.__u16(layout.StripeOffset))
+	C._lum_set_offset(lum, C.__u16(layout.StripeOffset))
 	if layout.PoolName != "" {
 		cPoolName := C.CString(layout.PoolName)
 		defer C.free(unsafe.Pointer(cPoolName))
 		lum.lmm_magic = C.LOV_USER_MAGIC_V3
-		C.lum_set_pool_name(lum, cPoolName)
+		C._lum_set_pool_name(lum, cPoolName)
 	}
 
 	size := C.lov_user_md_size(0, lum.lmm_magic)

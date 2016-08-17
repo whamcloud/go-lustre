@@ -6,14 +6,14 @@ package llapi
 // #include <stdlib.h>
 //
 // /* typecast hal_fsname to char *  */
-// char * hal_fsname(struct hsm_action_list *hal) {
+// char * _hal_fsname(struct hsm_action_list *hal) {
 //    return (char *) hal->hal_fsname;
 // }
 //
 // /* CGO 1.5 doesn't support zero byte fields at the
 //  * end of structs so we need an accessor.
 //  */
-// char * hai_data(struct hsm_action_item *hai) {
+// char * _hai_data(struct hsm_action_item *hai) {
 //     return &hai->hai_data[0];
 // }
 import "C"
@@ -152,7 +152,7 @@ func HsmCopytoolRecv(hcp *HsmCopytoolPrivate) (*HsmActionList, error) {
 	actionList.Flags = uint64(hal.hal_flags)
 	actionList.Version = uint32(hal.hal_version)
 	actionList.CompoundID = uint64(hal.hal_compound_id)
-	actionList.FsName = C.GoString(C.hal_fsname(hal))
+	actionList.FsName = C.GoString(C._hal_fsname(hal))
 
 	hai = C.hai_first(hal)
 	for i := 0; i < int(hal.hal_count); i++ {
@@ -175,7 +175,7 @@ func HsmCopytoolRecv(hcp *HsmCopytoolPrivate) (*HsmActionList, error) {
 
 func fetchData(hai *C.struct_hsm_action_item) []byte {
 	len := int(hai.hai_len) - int(unsafe.Sizeof(*hai))
-	return C.GoBytes(unsafe.Pointer(C.hai_data(hai)), C.int(len))
+	return C.GoBytes(unsafe.Pointer(C._hai_data(hai)), C.int(len))
 }
 
 // HsmActionBegin initializes the action so it can be processed by the copytool.
