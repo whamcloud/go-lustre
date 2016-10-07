@@ -7,10 +7,10 @@ package lustre_test
 import (
 	"encoding/json"
 
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/status"
-	"github.intel.com/hpdd/test/harness"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/status"
+	"github.com/intel-hpdd/test/harness"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

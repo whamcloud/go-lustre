@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.intel.com/hpdd/lustre/pkg/pool"
+	"github.com/intel-hpdd/go-lustre/pkg/pool"
 )
 
 func TestPool(t *testing.T) {

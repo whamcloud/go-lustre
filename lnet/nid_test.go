@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.intel.com/hpdd/ce-tools/lib/tu"
-	"github.intel.com/hpdd/lustre/lnet"
+	"github.com/intel-hpdd/ce-tools/lib/tu"
+	"github.com/intel-hpdd/go-lustre/lnet"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.intel.com/hpdd/lustre/luser"
+	"github.com/intel-hpdd/go-lustre/luser"
 )
 
 var (

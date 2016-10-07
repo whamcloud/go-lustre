@@ -6,7 +6,7 @@ package mntent
 
 import (
 	"github.com/pkg/errors"
-	"github.intel.com/hpdd/lustre"
+	"github.com/intel-hpdd/go-lustre"
 )
 
 // GetMounted returns a slide of filesystem entries from

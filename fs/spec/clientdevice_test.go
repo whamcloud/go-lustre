@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.intel.com/hpdd/lustre/fs/spec"
+	"github.com/intel-hpdd/go-lustre/fs/spec"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

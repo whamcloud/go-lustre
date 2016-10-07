@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/rcrowley/go-metrics"
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/changelog"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/changelog"
 )
 
 type (

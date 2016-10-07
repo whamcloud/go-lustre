@@ -10,9 +10,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/lustre/fs"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
+	"github.com/intel-hpdd/go-lustre/fs"
 
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"

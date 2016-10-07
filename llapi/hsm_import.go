@@ -25,8 +25,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/luser"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/luser"
 	"golang.org/x/sys/unix"
 )
 

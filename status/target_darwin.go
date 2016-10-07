@@ -4,7 +4,7 @@
 
 package status
 
-import "github.intel.com/hpdd/lustre"
+import "github.com/intel-hpdd/go-lustre"
 
 // LovName returns the uniqe name for the LOV devcie for the client associated with the path.
 func LovName(p string) (string, error) {

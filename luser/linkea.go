@@ -8,8 +8,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/pkg/xattr"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/pkg/xattr"
 )
 
 const (

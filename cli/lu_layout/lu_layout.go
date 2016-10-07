@@ -19,10 +19,10 @@ import (
 	"os"
 	"syscall"
 
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/lustre/luser"
-	"github.intel.com/hpdd/lustre/status"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/llapi"
+	"github.com/intel-hpdd/go-lustre/luser"
+	"github.com/intel-hpdd/go-lustre/status"
 	"golang.org/x/sys/unix"
 )
 

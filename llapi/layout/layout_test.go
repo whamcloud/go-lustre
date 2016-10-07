@@ -14,10 +14,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/llapi/layout"
-	"github.intel.com/hpdd/test/harness"
-	"github.intel.com/hpdd/test/utils"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/llapi/layout"
+	"github.com/intel-hpdd/test/harness"
+	"github.com/intel-hpdd/test/utils"
 )
 
 func createFile(name string, count, size, index int) error {

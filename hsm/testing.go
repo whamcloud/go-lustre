@@ -11,9 +11,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/llapi"
+	"github.com/intel-hpdd/logging/debug"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/llapi"
 )
 
 type (

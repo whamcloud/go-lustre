@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.intel.com/hpdd/lustre/changelog"
-	"github.intel.com/hpdd/lustre/status"
+	"github.com/intel-hpdd/go-lustre/changelog"
+	"github.com/intel-hpdd/go-lustre/status"
 )
 
 var printTimestamp = false

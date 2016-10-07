@@ -17,7 +17,7 @@ import (
 	"os"
 	"unsafe"
 
-	"github.intel.com/hpdd/lustre"
+	"github.com/intel-hpdd/go-lustre"
 )
 
 func fromCFid(f *C.struct_lu_fid) *lustre.Fid {

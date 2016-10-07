@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.intel.com/hpdd/lustre"
+	"github.com/intel-hpdd/go-lustre"
 )
 
 // MaxBatchSize is a limit imposed by liblustreapi, somewhere.

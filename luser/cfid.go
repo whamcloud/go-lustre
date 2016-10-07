@@ -10,8 +10,8 @@ package luser
 import (
 	"encoding/binary"
 
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/pkg/xattr"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/pkg/xattr"
 )
 
 // XattrNameLMA is the name of extended attribute for the striping data.

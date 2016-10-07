@@ -5,9 +5,9 @@
 package hsm
 
 import (
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/llapi"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/llapi"
 )
 
 // RequestArchive submits a request to the coordinator for the

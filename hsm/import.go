@@ -7,8 +7,8 @@ package hsm
 import (
 	"os"
 
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/llapi"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/llapi"
 )
 
 // Import file as a released file.

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.intel.com/hpdd/lustre/changelog/simulator"
+	"github.com/intel-hpdd/go-lustre/changelog/simulator"
 )
 
 func main() {

@@ -8,10 +8,10 @@ import (
 	"os"
 	"path"
 
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/status"
-	"github.intel.com/hpdd/test/harness"
-	"github.intel.com/hpdd/test/utils"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/status"
+	"github.com/intel-hpdd/test/harness"
+	"github.com/intel-hpdd/test/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

@@ -7,9 +7,9 @@ package layout_test
 import (
 	"testing"
 
-	"github.intel.com/hpdd/test/harness"
-	"github.intel.com/hpdd/test/log"
-	"github.intel.com/hpdd/test/utils"
+	"github.com/intel-hpdd/test/harness"
+	"github.com/intel-hpdd/test/log"
+	"github.com/intel-hpdd/test/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

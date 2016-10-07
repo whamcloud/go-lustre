@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.intel.com/hpdd/lustre"
+	"github.com/intel-hpdd/go-lustre"
 )
 
 type simRecord struct {
