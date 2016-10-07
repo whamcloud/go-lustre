@@ -1,3 +1,7 @@
+// Copyright (c) 2016 Intel Corporation. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 // This utility doesn't really "do" anything... It's here as an example
 // of how to set up and run a simulator. Can probably be nuked if/when
 // the simulator is integrated into some other code.

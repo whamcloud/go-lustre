@@ -1,3 +1,7 @@
+// Copyright (c) 2016 Intel Corporation. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 // Package luser uses lustre interfaces exported to usersapce
 // directly, instead of using the liblustreapi.a library.
 // Data structures created mirror those defined in lustre_user.

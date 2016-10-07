@@ -1,3 +1,7 @@
+// Copyright (c) 2016 Intel Corporation. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 // fid2path displays the paths for one or more fids.
 //  -mnt <mountpoint> Lustre mount point
 //  -link <link nbr>: only print the file at the offset
