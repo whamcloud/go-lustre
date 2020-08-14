@@ -49,15 +49,15 @@ func safeInt64(in uint64) (out int64, err error) {
 
 // GetVersion returns the version of lustre installed on the host.
 func GetVersion() (string, error) {
-	var buffer [4096]C.char
-	var cversion *C.char
+	var cversion [4096]C.char
 
-	rc, err := C.llapi_get_version(&buffer[0], C.int(len(buffer)), &cversion)
+	rc, err := C.llapi_get_version_string(&cversion[0], C.uint(len(cversion)))
+
 	if err := isError(rc, err); err != nil {
 		return "", err
 	}
 
-	return C.GoString(cversion), nil
+	return C.GoString(&cversion[0]), nil
 }
 
 // GetName returns the name-id of the client filesystem at mountPath
