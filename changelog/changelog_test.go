@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/intel-hpdd/go-lustre/changelog"
+	"github.com/wastore/go-lustre/changelog"
 	"github.com/intel-hpdd/test/harness"
 	"github.com/intel-hpdd/test/log"
 	"github.com/intel-hpdd/test/utils"

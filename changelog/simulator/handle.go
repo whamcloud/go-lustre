@@ -7,7 +7,7 @@ package simulator
 import (
 	"io"
 
-	"github.com/intel-hpdd/go-lustre/changelog"
+	"github.com/wastore/go-lustre/changelog"
 )
 
 type simHandle struct {

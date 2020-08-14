@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/intel-hpdd/ce-tools/lib/tu"
-	"github.com/intel-hpdd/go-lustre/lnet"
+	"github.com/wastore/go-lustre/lnet"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

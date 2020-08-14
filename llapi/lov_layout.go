@@ -55,8 +55,8 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/intel-hpdd/go-lustre"
-	"github.com/intel-hpdd/go-lustre/pkg/xattr"
+	"github.com/wastore/go-lustre"
+	"github.com/wastore/go-lustre/pkg/xattr"
 )
 
 type (

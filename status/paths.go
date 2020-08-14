@@ -7,9 +7,9 @@ package status
 import (
 	"path"
 
-	"github.com/intel-hpdd/go-lustre"
-	"github.com/intel-hpdd/go-lustre/fs"
-	"github.com/intel-hpdd/go-lustre/llapi"
+	"github.com/wastore/go-lustre"
+	"github.com/wastore/go-lustre/fs"
+	"github.com/wastore/go-lustre/llapi"
 )
 
 // FidPathname returns a path for a FID.

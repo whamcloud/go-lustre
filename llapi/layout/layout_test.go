@@ -14,8 +14,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 
-	"github.com/intel-hpdd/go-lustre/fs"
-	"github.com/intel-hpdd/go-lustre/llapi/layout"
+	"github.com/wastore/go-lustre/fs"
+	"github.com/wastore/go-lustre/llapi/layout"
 	"github.com/intel-hpdd/test/harness"
 	"github.com/intel-hpdd/test/utils"
 )

@@ -12,7 +12,7 @@ import (
 
 	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/debug"
-	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/wastore/go-lustre/fs"
 
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"

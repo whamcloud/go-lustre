@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/intel-hpdd/go-lustre"
-	"github.com/intel-hpdd/go-lustre/llapi"
+	"github.com/wastore/go-lustre"
+	"github.com/wastore/go-lustre/llapi"
 	"github.com/intel-hpdd/logging/debug"
 )
 

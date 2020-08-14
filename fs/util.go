@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/intel-hpdd/go-lustre/luser"
+	"github.com/wastore/go-lustre/luser"
 )
 
 // Version returns the current Lustre version string.

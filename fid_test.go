@@ -7,9 +7,9 @@ package lustre_test
 import (
 	"encoding/json"
 
-	"github.com/intel-hpdd/go-lustre"
-	"github.com/intel-hpdd/go-lustre/fs"
-	"github.com/intel-hpdd/go-lustre/status"
+	"github.com/wastore/go-lustre"
+	"github.com/wastore/go-lustre/fs"
+	"github.com/wastore/go-lustre/status"
 	"github.com/intel-hpdd/test/harness"
 
 	. "github.com/onsi/ginkgo"

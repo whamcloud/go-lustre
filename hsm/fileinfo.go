@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/intel-hpdd/go-lustre/llapi"
+	"github.com/wastore/go-lustre/llapi"
 )
 
 // FileStatus describes a file's current HSM status, including its
