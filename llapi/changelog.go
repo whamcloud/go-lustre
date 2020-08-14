@@ -270,7 +270,8 @@ func (r *ChangelogRecord) flagStrings() []string {
 	case OpHSM:
 		event := HsmEvent(C.hsm_get_cl_event(C.__u16(r.flags)))
 		flagStrings = append(flagStrings, event.String())
-		hsmFlags := C.hsm_get_cl_flags(C.int(r.flags))
+		hsmFlags := C.hsm_get_cl_flags(C.enum_changelog_rec_flags(r.flags))
+
 		switch hsmFlags {
 		case C.CLF_HSM_DIRTY:
 			flagStrings = append(flagStrings, "Dirty")
