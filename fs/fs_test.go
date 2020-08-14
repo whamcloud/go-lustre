@@ -4,12 +4,12 @@
 
 package fs_test
 
-import (
-	"os"
-	"path"
-
-	"github.com/wastore/go-lustre/fs"
-	"github.com/wastore/go-lustre/status"
+//import (
+//	"os"
+//	"path"
+//
+//	"github.com/wastore/go-lustre/fs"
+//	"github.com/wastore/go-lustre/status"
 //	"github.com/intel-hpdd/test/harness"
 //	"github.com/intel-hpdd/test/utils"
 //
