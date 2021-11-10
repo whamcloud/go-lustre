@@ -74,3 +74,27 @@ func GetName(mountPath string) (string, error) {
 
 	return C.GoString(&buffer[0]), nil
 }
+
+func RegisterErrorCB(fifoPath string) (int, error) {
+	cfifoPath := C.CString(fifoPath)
+	defer C.free(unsafe.Pointer(cfifoPath))
+
+	rc, err := C.llapi_hsm_register_event_fifo(cfifoPath)
+	if err := isError(rc, err); err != nil {
+		return int(rc), err
+	}
+
+	return 0, nil
+}
+
+func UnregisterErrorCB(fifoPath string) (int, error) {
+	cfifoPath := C.CString(fifoPath)
+	defer C.free(unsafe.Pointer(cfifoPath))
+
+	rc, err := C.llapi_hsm_unregister_event_fifo(cfifoPath)
+	if err := isError(rc, err); err != nil {
+		return int(rc), err
+	}
+
+	return 0, nil
+}
