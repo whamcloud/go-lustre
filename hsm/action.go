@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/intel-hpdd/logging/alert"
 	"github.com/wastore/go-lustre"
 	"github.com/wastore/go-lustre/fs"
 	"github.com/wastore/go-lustre/llapi"
 	"github.com/wastore/go-lustre/status"
-	"github.com/intel-hpdd/logging/alert"
 	"golang.org/x/sys/unix"
 )
 
@@ -173,7 +173,8 @@ func (ai *actionItem) Begin(openFlags int, isError bool) (ActionHandle, error) {
 			return nil, err
 		}
 		openFlags = llapi.LovDelayCreate
-		setLov = true
+		// Hack: disable this for now, to see if this is to blame for the bad striping info.
+		//setLov = true
 	}
 	var err error
 	ai.mu.Lock()
